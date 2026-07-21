@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { constants, createWriteStream } from 'node:fs';
+import { setSecret } from '@actions/core';
 import { access, appendFile, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -202,13 +203,8 @@ export async function runAction(
       );
   }
 
-  // GitHub consumes these workflow commands to redact the values from subsequent job logs.
-  // codeql[js/clear-text-logging]
-  console.log(`::add-mask::${apiKey}`);
-  if (env.PI_AGENT_GITHUB_TOKEN) {
-    // codeql[js/clear-text-logging]
-    console.log(`::add-mask::${env.PI_AGENT_GITHUB_TOKEN}`);
-  }
+  setSecret(apiKey);
+  if (env.PI_AGENT_GITHUB_TOKEN) setSecret(env.PI_AGENT_GITHUB_TOKEN);
 
   const installRoot = join(runnerTemp, `pi-agent-${version}`);
   const piExecutable =
