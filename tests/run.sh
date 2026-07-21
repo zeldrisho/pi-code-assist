@@ -2,6 +2,8 @@
 set -euo pipefail
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+configured_version="$(awk '/default: [0-9]+\.[0-9]+\.[0-9]+/{ print $2; exit }' "$repository_root/action.yml")"
+[[ -n "$configured_version" ]] || { printf 'Unable to read configured Pi version.\n' >&2; exit 1; }
 temporary_directory="$(mktemp -d)"
 cleanup() {
   if [[ "${CI:-}" == "true" ]]; then
@@ -69,7 +71,7 @@ run_pi() {
     PI_AGENT_INPUT_PACKAGES= \
     PI_AGENT_GITHUB_TOKEN= \
     PI_AGENT_INPUT_GITHUB_TOOLS=none \
-    PI_AGENT_INPUT_VERSION=0.80.10 \
+    PI_AGENT_INPUT_VERSION="$configured_version" \
     PI_AGENT_INPUT_WORKING_DIRECTORY=project \
     "$@" \
     "$repository_root/scripts/run.sh"

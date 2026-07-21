@@ -10,6 +10,7 @@ Release Please maintains the version, changelog, tags, and GitHub releases for t
 - Confirm the exact version and source commit before merging a release pull request.
 - Do not create, move, or recreate release tags manually.
 - Keep workflow actions pinned to reviewed full commit SHAs.
+- Preserve already-published changelog links from the former `zeldrisho/pi-agent` repository name as immutable release history. Current and future generated entries use `zeldrisho/pi-code-assist`; do not hand-edit old entries solely to replace working redirects.
 
 ## Configuration
 

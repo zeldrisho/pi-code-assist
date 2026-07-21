@@ -4,6 +4,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "23 6 * * 1" # Weekly Pi installation and compatibility check.
 
 permissions:
   contents: read

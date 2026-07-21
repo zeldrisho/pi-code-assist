@@ -126,7 +126,7 @@ steps:
       prompt: Implement the requested change and create a pull request.
 ```
 
-GitHub read tools paginate within fixed limits of 5 pages and 500 records and bound each result to 50 KB / 2,000 lines. Tool result details report record counts, truncation, and continuation API paths; diffs and logs likewise report when their byte or line limit omitted content.
+GitHub read tools paginate within fixed limits of 5 pages and 500 records and bound each result to 50 KB / 2,000 lines. Tool result details report record counts, truncation, and continuation API paths. Diffs are streamed into a bounded head collector and logs into a bounded tail collector, so arbitrarily large command output is not retained in memory; their details report the complete byte and line counts and whether output was omitted.
 
 GitHub tools automatically use the job-scoped token and act as `github-actions[bot]`; user PATs and GitHub App tokens are not accepted. The action does not grant permissions itself, so write tools work only when the workflow explicitly grants the corresponding permissions. Creating or updating a pull request also requires checkout credentials capable of pushing to the repository; pull requests from forks are not updated. Events created by `github-actions[bot]` generally do not trigger additional workflow runs. Keep `github-tools: none` or `read` for untrusted triggers, and restrict who can invoke workflows with write access.
 

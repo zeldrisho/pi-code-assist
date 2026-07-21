@@ -10,6 +10,8 @@ from pathlib import Path
 root = Path(sys.argv[1])
 action = (root / "action.yml").read_text()
 readme = (root / "README.md").read_text()
+runtime = (root / "scripts/run.sh").read_text()
+extension = (root / "extensions/github-tools.ts").read_text()
 
 def yaml_section(name):
     match = re.search(rf"(?ms)^{name}:\n(.*?)(?=^[a-z][a-z-]*:|\Z)", action)
@@ -67,5 +69,30 @@ for name in ("thinking", "github-tools"):
         raise SystemExit(f"Enum mismatch for {name}: README={sorted(readme_values)}, action.yml={sorted(action_values)}")
 if "must begin with `./`" not in readme:
     raise SystemExit("README must state that workspace package paths begin with ./")
-print("README/action contract tests passed.")
+
+runtime_version_match = re.search(r'^version="\$\{PI_AGENT_INPUT_VERSION:-(.*?)\}"$', runtime, re.M)
+if not runtime_version_match:
+    raise SystemExit("Unable to find the Pi runtime fallback version in scripts/run.sh")
+action_version = inputs["pi-version"]["default"]
+runtime_version = runtime_version_match.group(1)
+if action_version != runtime_version:
+    raise SystemExit(f"Pi version mismatch: action.yml={action_version}, scripts/run.sh={runtime_version}")
+
+registered = re.findall(r'pi\.registerTool\(\{\s*name:\s*"([^"]+)"', extension)
+mode_boundary = extension.find('if (mode !== "write") return;')
+if mode_boundary < 0:
+    raise SystemExit("Unable to identify the GitHub write-tool boundary")
+read_registered = re.findall(r'pi\.registerTool\(\{\s*name:\s*"([^"]+)"', extension[:mode_boundary])
+write_registered = registered[len(read_registered):]
+read_selection = re.search(r"github_tool_names='([^']+)'", runtime)
+write_selection = re.search(r"github_tool_names\+=',([^']+)'", runtime)
+if not read_selection or not write_selection:
+    raise SystemExit("Unable to find GitHub tool selections in scripts/run.sh")
+runtime_read = read_selection.group(1).split(",")
+runtime_write = write_selection.group(1).split(",")
+if runtime_read != read_registered:
+    raise SystemExit(f"GitHub read-tool mismatch: scripts/run.sh={runtime_read}, extension={read_registered}")
+if runtime_write != write_registered:
+    raise SystemExit(f"GitHub write-tool mismatch: scripts/run.sh={runtime_write}, extension={write_registered}")
+print("README/action/runtime contract tests passed.")
 PY

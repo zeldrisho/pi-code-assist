@@ -14,9 +14,11 @@ Use this checklist when reviewing changes to `action.yml`, `scripts/run.sh`, bun
 - Preserve Pi's exit status when streaming through `tee`; a partial response must not turn a failed run into success.
 - Bound expression-safe output. Keep the response file available when the `response` output is too large.
 - Do not grant token permissions, post comments, push commits, or execute model output implicitly. GitHub write tools must require explicit action inputs and workflow permissions.
-- Keep GitHub reads paginated and bounded with explicit truncation metadata, pass API request bodies through protected temporary files rather than shell interpolation, and clean those files after success or failure.
+- Keep GitHub reads paginated and bounded with explicit truncation metadata. Stream diffs and logs through bounded head/tail collectors so command output is never buffered without limit, preserve UTF-8 boundaries, and clean child processes on timeout or cancellation.
+- Pass GitHub API request bodies through protected temporary files rather than shell interpolation, and clean those files after success, failure, timeout, or cancellation.
 - Require GitHub commit tools to stage explicit workspace-relative paths, reject traversal and symlink escapes, and reject cross-repository pull-request updates.
 - If future features manage temporary credentials or trusted configuration, clean them up in a separate `always()` action step so process failures cannot skip cleanup.
 - Keep every external action pinned to a reviewed full commit SHA.
+- Treat the exact Pi package as the direct trust pin while acknowledging that npm resolves its transitive ranges at installation time. Rely on npm registry integrity verification plus the scheduled real-install compatibility test; follow the update and rollback policy in [`development.md`](development.md).
 
 Run all commands in `AGENTS.md` before proposing a runtime or workflow change.

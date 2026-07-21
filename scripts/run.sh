@@ -89,6 +89,15 @@ else
 fi
 [[ -x "$pi_bin" ]] || fail "Pi executable not found: $pi_bin"
 
+# Internal credential-free installation probe used by the validation suite.
+if [[ "${PI_AGENT_TEST_INSTALL_ONLY:-false}" == true ]]; then
+  installed_version="$("$pi_bin" --version)" || fail 'Pi version probe failed'
+  [[ "$installed_version" == "$version" ]] || \
+    fail "installed Pi version mismatch: expected $version, received $installed_version"
+  printf 'Pi %s installation verified.\n' "$installed_version"
+  exit 0
+fi
+
 if [[ -n "${PI_AGENT_INPUT_API_KEY:-}" ]]; then
   printf '::add-mask::%s\n' "$PI_AGENT_INPUT_API_KEY"
 fi
