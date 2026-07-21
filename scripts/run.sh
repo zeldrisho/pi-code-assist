@@ -15,9 +15,9 @@ version="${PI_AGENT_INPUT_VERSION:-0.80.10}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || \
   fail 'pi-version must be an exact semantic version'
 
-thinking="${PI_AGENT_INPUT_THINKING:-medium}"
+thinking="${PI_AGENT_INPUT_THINKING:-}"
 case "$thinking" in
-  off|minimal|low|medium|high|xhigh|max) ;;
+  ''|off|minimal|low|medium|high|xhigh|max) ;;
   *) fail "unsupported thinking level: $thinking" ;;
 esac
 
@@ -25,6 +25,21 @@ project_trust="${PI_AGENT_INPUT_PROJECT_TRUST:-false}"
 case "$project_trust" in
   true|false) ;;
   *) fail 'project-trust must be true or false' ;;
+esac
+
+github_tools="${PI_AGENT_INPUT_GITHUB_TOOLS:-none}"
+case "$github_tools" in
+  none) ;;
+  read|write)
+    [[ -n "${PI_AGENT_GITHUB_TOKEN:-}" ]] || \
+      fail 'GitHub Actions token is unavailable while github-tools is enabled'
+    [[ "${GITHUB_REPOSITORY:-}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || \
+      fail 'GITHUB_REPOSITORY must identify an owner/repository'
+    [[ -n "${GITHUB_ACTION_PATH:-}" ]] || fail 'GITHUB_ACTION_PATH is not set'
+    [[ -f "$GITHUB_ACTION_PATH/extensions/github-tools.ts" ]] || \
+      fail 'bundled GitHub extension is missing'
+    ;;
+  *) fail 'github-tools must be none, read, or write' ;;
 esac
 
 workspace="$(realpath "$GITHUB_WORKSPACE")"
@@ -37,6 +52,25 @@ case "$working_directory/" in
   *) fail 'working-directory must stay within GITHUB_WORKSPACE' ;;
 esac
 [[ -d "$working_directory" ]] || fail 'working-directory must be a directory'
+
+package_sources=()
+while IFS= read -r source || [[ -n "$source" ]]; do
+  source="${source%$'\r'}"
+  [[ -n "$source" ]] || continue
+  if [[ "$source" =~ ^npm:((@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)|([A-Za-z0-9_.-]+))@[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+    package_sources+=("$source")
+  elif [[ "$source" =~ ^git:.+@[0-9a-fA-F]{40}$ ]] && [[ ! "$source" =~ [[:space:]] ]]; then
+    package_sources+=("$source")
+  elif [[ "$source" == ./* ]]; then
+    package_path="$(realpath -e "$workspace/$source")" || fail "package path does not exist: $source"
+    case "$package_path/" in
+      "$workspace/"*) package_sources+=("$package_path") ;;
+      *) fail "package path must stay within GITHUB_WORKSPACE: $source" ;;
+    esac
+  else
+    fail "package must be an exact-pinned npm/git source or a workspace-relative path: $source"
+  fi
+done <<< "${PI_AGENT_INPUT_PACKAGES:-}"
 
 if [[ -n "${PI_AGENT_TEST_BIN:-}" ]]; then
   pi_bin="$PI_AGENT_TEST_BIN"
@@ -58,18 +92,42 @@ fi
 if [[ -n "${PI_AGENT_INPUT_API_KEY:-}" ]]; then
   printf '::add-mask::%s\n' "$PI_AGENT_INPUT_API_KEY"
 fi
+if [[ -n "${PI_AGENT_GITHUB_TOKEN:-}" ]]; then
+  printf '::add-mask::%s\n' "$PI_AGENT_GITHUB_TOKEN"
+fi
 
-args=(--print --no-session --thinking "$thinking")
+args=(--print --no-session)
+[[ -n "$thinking" ]] && args+=(--thinking "$thinking")
 [[ "$project_trust" == true ]] && args+=(--approve) || args+=(--no-approve)
 [[ -n "${PI_AGENT_INPUT_PROVIDER:-}" ]] && args+=(--provider "$PI_AGENT_INPUT_PROVIDER")
 [[ -n "${PI_AGENT_INPUT_MODEL:-}" ]] && args+=(--model "$PI_AGENT_INPUT_MODEL")
 [[ -n "${PI_AGENT_INPUT_API_KEY:-}" ]] && args+=(--api-key "$PI_AGENT_INPUT_API_KEY")
-if [[ -n "${PI_AGENT_INPUT_TOOLS:-}" && "${PI_AGENT_INPUT_TOOLS}" != all ]]; then
-  args+=(--tools "$PI_AGENT_INPUT_TOOLS")
+for source in "${package_sources[@]}"; do
+  args+=(--extension "$source")
+done
+
+selected_tools="${PI_AGENT_INPUT_TOOLS:-}"
+if [[ "$github_tools" != none ]]; then
+  args+=(--extension "$GITHUB_ACTION_PATH/extensions/github-tools.ts")
+  github_tool_names='get_issue_or_pr_thread,get_pr_diff,get_ci_status,get_workflow_run_logs'
+  if [[ "$github_tools" == write ]]; then
+    github_tool_names+=',post_comment,create_pull_request_review,create_pull_request,update_pull_request'
+  fi
+  if [[ -n "$selected_tools" && "$selected_tools" != all ]]; then
+    selected_tools+=",$github_tool_names"
+  fi
+fi
+if [[ -n "$selected_tools" && "$selected_tools" != all ]]; then
+  args+=(--tools "$selected_tools")
 fi
 response_file="$(mktemp "$RUNNER_TEMP/pi-agent-response-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-XXXXXX.txt")"
 export PI_SKIP_VERSION_CHECK=1
 export PI_TELEMETRY=0
+export PI_AGENT_GITHUB_TOOLS="$github_tools"
+if [[ "$github_tools" != none ]]; then
+  export GH_TOKEN="$PI_AGENT_GITHUB_TOKEN"
+  unset PI_AGENT_GITHUB_TOKEN
+fi
 
 set +e
 (
