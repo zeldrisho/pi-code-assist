@@ -1,4 +1,4 @@
-# Pi Agent for GitHub Actions
+# Pi Code Assist
 
 Run the [Pi coding agent](https://pi.dev/) as a small, composable GitHub Action. The action installs an exact Pi version, runs one non-interactive prompt, streams the response to the job log, and exposes it to later steps.
 
@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0
 
       - id: pi
-        uses: zeldrisho/pi-agent@0123456789abcdef0123456789abcdef01234567
+        uses: zeldrisho/pi-code-assist@0123456789abcdef0123456789abcdef01234567
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         with:
@@ -66,7 +66,7 @@ Replace the example revision with a reviewed full commit SHA. Pinning actions pr
 Provider-specific environment variables such as `OPENCODE_API_KEY` also work because Pi inherits the step environment:
 
 ```yaml
-- uses: zeldrisho/pi-agent@0123456789abcdef0123456789abcdef01234567
+- uses: zeldrisho/pi-code-assist@0123456789abcdef0123456789abcdef01234567
   env:
     OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
   with:
@@ -115,7 +115,7 @@ steps:
     with:
       fetch-depth: 0
 
-  - uses: zeldrisho/pi-agent@0123456789abcdef0123456789abcdef01234567
+  - uses: zeldrisho/pi-code-assist@0123456789abcdef0123456789abcdef01234567
     env:
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
     with:

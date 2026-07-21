@@ -4,7 +4,7 @@ Release Please maintains the version, changelog, tags, and GitHub releases for t
 
 ## Release invariants
 
-- Release Please owns `version.txt`, `.release-please-manifest.json`, and generated `CHANGELOG.md` entries.
+- Release Please owns `version.txt` and generated `CHANGELOG.md` entries.
 - Do not hand-edit a Release Please branch or generated release artifacts to bypass checks.
 - Only the repository owner merges pull requests.
 - Confirm the exact version and source commit before merging a release pull request.
@@ -13,15 +13,15 @@ Release Please maintains the version, changelog, tags, and GitHub releases for t
 
 ## Configuration
 
-This is a single-component repository using the `simple` strategy. Manifest mode set the custom initial version to `0.1.0`; `.release-please-manifest.json` now records the latest released root-component version. Release Please maintains that manifest, `version.txt`, and `CHANGELOG.md`. Releases use immutable `v<version>` tags without a component prefix.
+This is a single-component repository using Release Please's config-free `simple` strategy. The strategy maintains `version.txt` and `CHANGELOG.md`, and determines release history from the repository's existing releases and `v<version>` tags. Releases use immutable tags without a component prefix.
 
 `.github/workflows/release.yml` runs on pushes to `main`. It validates the pushed commit before granting its release job `contents: write` and `pull-requests: write`. The workflow uses the repository `GITHUB_TOKEN`; no personal token or publishing credential is required. Repository Actions settings must allow GitHub Actions to create pull requests; the workflow does not approve them.
 
 GitHub suppresses workflow events created by `GITHUB_TOKEN`. A newly created or updated release pull request therefore needs a manual CI dispatch against its head branch before it can satisfy the protected `check` requirement:
 
 ```bash
-gh workflow run CI --repo zeldrisho/pi-agent --ref <release-please-branch>
-gh run list --repo zeldrisho/pi-agent --workflow CI --branch <release-please-branch> --limit 5
+gh workflow run CI --repo zeldrisho/pi-code-assist --ref <release-please-branch>
+gh run list --repo zeldrisho/pi-code-assist --workflow CI --branch <release-please-branch> --limit 5
 ```
 
 ## Release procedure
@@ -29,7 +29,7 @@ gh run list --repo zeldrisho/pi-agent --workflow CI --branch <release-please-bra
 1. Merge ordinary Conventional Commit pull requests through the protected rebase-only workflow.
 2. Confirm the Release workflow validated `main` and proposed the expected version and changelog.
 3. Do not modify the generated release branch. Manually dispatch CI for its head branch and confirm the `check` job succeeds on the release commit.
-4. Review the release pull request's `CHANGELOG.md`, `version.txt`, and `.release-please-manifest.json` changes.
+4. Review the release pull request's `CHANGELOG.md` and `version.txt` changes.
 5. The repository owner rebase-merges the release pull request only after approving the exact version.
 6. Confirm the next Release workflow created one `v<version>` tag and one GitHub release at the approved commit.
 7. Verify the tag is immutable and advise consumers to use the released commit SHA rather than a floating tag.

@@ -22,7 +22,7 @@
 | Development guide | `docs/development.md` |
 | Security invariants | `docs/security.md` |
 | Release process | `docs/releases.md` |
-| Release configuration | `release-please-config.json` and `.github/workflows/release.yml` |
+| Release configuration | `.github/workflows/release.yml` |
 
 ## Git Workflow
 
