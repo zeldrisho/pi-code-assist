@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.0.0](https://github.com/zeldrisho/pi-code-assist/compare/v1.0.0...v2.0.0) (2026-07-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* pi-version is now required and no longer defaults to 0.80.10.
+
+### Features
+
+* migrate action runtime to Vite+ ([0da18c5](https://github.com/zeldrisho/pi-code-assist/commit/0da18c55e0a3164be1881c14a5bbcbcca5977d45))
+
+
+### Bug Fixes
+
+* disable setup-vp automatic installs ([e8eb733](https://github.com/zeldrisho/pi-code-assist/commit/e8eb73345306edd26cc1af7b067d4474ebad9404))
+* document GitHub secret masking sink ([ad5aa45](https://github.com/zeldrisho/pi-code-assist/commit/ad5aa455a1950f7a3a6f489b10934b0329f4bb7f))
+* use Actions toolkit for secret masking ([01d8e79](https://github.com/zeldrisho/pi-code-assist/commit/01d8e798cc4cac2b741d3b34bb4fba1063cc1b76))
+
 ## [1.0.0](https://github.com/zeldrisho/pi-code-assist/compare/v0.2.1...v1.0.0) (2026-07-21)
 
 
