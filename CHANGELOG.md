@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/zeldrisho/pi-code-assist/compare/v0.2.0...v0.2.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* prepare Pi Code Assist for Marketplace ([83b2edd](https://github.com/zeldrisho/pi-code-assist/commit/83b2edd56559cc11ca411a446bf0c274d61e0b98))
+
 ## [0.2.0](https://github.com/zeldrisho/pi-agent/compare/v0.1.0...v0.2.0) (2026-07-21)
 
 
