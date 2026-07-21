@@ -12,6 +12,7 @@ else
   go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
 fi
 ./tests/run.sh
+./tests/install.sh
 ./tests/github-tools.sh
 ./tests/contract.sh
 ./tests/smoke-action.sh

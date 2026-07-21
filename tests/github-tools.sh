@@ -22,11 +22,23 @@ npm install \
   --no-audit \
   --no-fund \
   --ignore-scripts \
-  "@earendil-works/pi-coding-agent@$version" >/dev/null
+  "@earendil-works/pi-coding-agent@$version" \
+  "typescript@5.9.3" \
+  "@types/node@22.18.0" >/dev/null
 
 package_root="$temporary_directory/node_modules/@earendil-works/pi-coding-agent"
 cp "$repository_root/extensions/github-tools.ts" "$package_root/github-tools.ts"
 cp "$repository_root/tests/github-tools.cjs" "$package_root/github-tools.test.cjs"
+"$temporary_directory/node_modules/.bin/tsc" \
+  --noEmit \
+  --strict \
+  --skipLibCheck \
+  --target ES2022 \
+  --module NodeNext \
+  --moduleResolution NodeNext \
+  --typeRoots "$temporary_directory/node_modules/@types" \
+  --types node \
+  "$package_root/github-tools.ts"
 (
   cd "$package_root"
   node github-tools.test.cjs

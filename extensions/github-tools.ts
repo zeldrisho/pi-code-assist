@@ -5,6 +5,7 @@ import { mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { spawn } from "node:child_process";
 
 const MAX_OUTPUT_BYTES = 50_000;
 const MAX_OUTPUT_LINES = 2_000;
@@ -14,7 +15,7 @@ const MAX_PAGES = 5;
 const MAX_RECORDS = 500;
 
 type Mode = "read" | "write";
-type ExecResult = { text: string; truncated: boolean; total_bytes: number; total_lines: number; returned_bytes: number; returned_lines: number };
+type ExecResult = { text: string; truncated: boolean; total_bytes: number; total_lines: number; returned_bytes: number; returned_lines: number; keep_tail?: boolean };
 type PageResult = { records: unknown[]; count: number; pages: number; truncated: boolean; continuation?: string };
 
 function targetNumber(): number | undefined {
@@ -41,12 +42,12 @@ function numberOrEvent(value?: number): number {
   return result;
 }
 
-function bounded(value: string, keepTail = false, maxBytes = MAX_OUTPUT_BYTES): ExecResult {
+function bounded(value: string, keepTail = false, maxBytes = MAX_OUTPUT_BYTES, maxLines = MAX_OUTPUT_LINES): ExecResult {
   const lines = value.split("\n");
   let selected = lines;
   let truncated = false;
-  if (lines.length > MAX_OUTPUT_LINES) {
-    selected = keepTail ? lines.slice(-MAX_OUTPUT_LINES) : lines.slice(0, MAX_OUTPUT_LINES);
+  if (lines.length > maxLines) {
+    selected = keepTail ? lines.slice(-maxLines) : lines.slice(0, maxLines);
     truncated = true;
   }
   let output = selected.join("\n");
@@ -74,34 +75,145 @@ function bounded(value: string, keepTail = false, maxBytes = MAX_OUTPUT_BYTES): 
   };
 }
 
+function decodeUtf8(value: Buffer, keepTail: boolean): string {
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let selected = value;
+  while (selected.length) {
+    try {
+      return decoder.decode(selected);
+    } catch {
+      selected = keepTail ? selected.subarray(1) : selected.subarray(0, -1);
+    }
+  }
+  return "";
+}
+
 function textResult(result: ExecResult, details: Record<string, unknown> = {}) {
-  const marker = result.truncated
-    ? `\n\n[Output truncated: ${result.returned_bytes}/${result.total_bytes} bytes, ${result.returned_lines}/${result.total_lines} lines]`
-    : "";
-  return { content: [{ type: "text" as const, text: result.text + marker }], details: { ...details, ...result } };
+  let text = result.text;
+  let returnedBytes = result.returned_bytes;
+  let returnedLines = result.returned_lines;
+  let marker = "";
+  if (result.truncated) {
+    // Iterate because changing the returned counts can change the marker width.
+    for (let iteration = 0; iteration < 3; iteration += 1) {
+      marker = `\n\n[Output truncated: ${returnedBytes}/${result.total_bytes} bytes, ${returnedLines}/${result.total_lines} lines]`;
+      const display = bounded(
+        result.text,
+        result.keep_tail ?? false,
+        MAX_OUTPUT_BYTES - Buffer.byteLength(marker),
+        MAX_OUTPUT_LINES - 2,
+      );
+      text = display.text;
+      returnedBytes = display.returned_bytes;
+      returnedLines = display.returned_lines;
+    }
+    marker = `\n\n[Output truncated: ${returnedBytes}/${result.total_bytes} bytes, ${returnedLines}/${result.total_lines} lines]`;
+  }
+  const { text: _text, keep_tail: _keepTail, ...metadata } = result;
+  return {
+    content: [{ type: "text" as const, text: text + marker }],
+    details: { ...details, ...metadata, returned_bytes: returnedBytes, returned_lines: returnedLines },
+  };
 }
 
 export default function githubTools(pi: ExtensionAPI) {
   const mode = process.env.PI_AGENT_GITHUB_TOOLS as Mode | undefined;
   if (mode !== "read" && mode !== "write") return;
 
-  async function execRaw(command: string, args: string[], signal?: AbortSignal, timeout = 120_000) {
-    const result = await pi.exec(command, args, { signal, timeout });
-    if (result.code !== 0) {
-      const failure = bounded(result.stderr || result.stdout || `${command} exited with status ${result.code}`, true);
-      throw new Error(failure.text + (failure.truncated ? "\n[Error output truncated]" : ""));
-    }
-    return result.stdout;
+  async function execStreaming(
+    command: string,
+    args: string[],
+    signal?: AbortSignal,
+    keepTail = false,
+    maxBytes = MAX_OUTPUT_BYTES,
+    maxLines = MAX_OUTPUT_LINES,
+    rejectOverflow = false,
+    timeout = 120_000,
+  ): Promise<ExecResult> {
+    return await new Promise((resolvePromise, rejectPromise) => {
+      const child = spawn(command, args, { env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+      let output: Buffer = Buffer.alloc(0);
+      let errorOutput: Buffer = Buffer.alloc(0);
+      let totalBytes = 0;
+      let totalNewlines = 0;
+      let overflowed = false;
+      let timedOut = false;
+      let settled = false;
+
+      const retain = (current: Buffer, chunk: Buffer, tail: boolean, limit: number) => {
+        if (tail) {
+          const combined = Buffer.concat([current, chunk]);
+          return combined.length > limit ? combined.subarray(combined.length - limit) : combined;
+        }
+        if (current.length >= limit) return current;
+        return Buffer.concat([current, chunk.subarray(0, limit - current.length)]);
+      };
+      child.stdout.on("data", (value: Buffer) => {
+        totalBytes += value.length;
+        for (const byte of value) if (byte === 10) totalNewlines += 1;
+        output = retain(output, value, keepTail, maxBytes);
+        if (rejectOverflow && totalBytes > maxBytes && !overflowed) {
+          overflowed = true;
+          child.kill();
+        }
+      });
+      child.stderr.on("data", (value: Buffer) => {
+        errorOutput = retain(errorOutput, value, true, MAX_OUTPUT_BYTES);
+      });
+      const finishWithError = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        rejectPromise(error);
+      };
+      child.on("error", finishWithError);
+      const timer = setTimeout(() => {
+        timedOut = true;
+        child.kill();
+      }, timeout);
+      const abort = () => child.kill();
+      signal?.addEventListener("abort", abort, { once: true });
+      child.on("close", code => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
+        if (settled) return;
+        if (signal?.aborted) return finishWithError(new Error(`${command} was cancelled`));
+        if (timedOut) return finishWithError(new Error(`${command} timed out after ${timeout} ms`));
+        if (overflowed) return finishWithError(new Error("GitHub API response exceeded the 1,000,000-byte request limit"));
+        if (code !== 0) {
+          const failure = bounded(errorOutput.toString("utf8") || output.toString("utf8") || `${command} exited with status ${code}`, true);
+          return finishWithError(new Error(failure.text + (failure.truncated ? "\n[Error output truncated]" : "")));
+        }
+        const retained = bounded(decodeUtf8(output, keepTail), keepTail, maxBytes, maxLines);
+        const result = {
+          ...retained,
+          truncated: retained.truncated || totalBytes > retained.returned_bytes || totalNewlines + 1 > retained.returned_lines,
+          total_bytes: totalBytes,
+          total_lines: totalNewlines + 1,
+          keep_tail: keepTail,
+        };
+        settled = true;
+        resolvePromise(result);
+      });
+    });
+  }
+
+  async function execRaw(command: string, args: string[], signal?: AbortSignal) {
+    return (await execStreaming(command, args, signal, false, MAX_API_BYTES, Number.MAX_SAFE_INTEGER, true)).text;
   }
 
   async function exec(command: string, args: string[], signal?: AbortSignal, keepTail = false) {
-    return bounded(await execRaw(command, args, signal), keepTail);
+    return await execStreaming(command, args, signal, keepTail);
   }
 
   async function ghApi(path: string, signal?: AbortSignal, extra: string[] = []) {
-    const output = await execRaw("gh", ["api", path, ...extra], signal);
-    if (Buffer.byteLength(output) > MAX_API_BYTES) throw new Error("GitHub API response exceeded the 1,000,000-byte request limit");
-    return output;
+    return await execRaw("gh", ["api", path, ...extra], signal);
+  }
+
+  function responseUrl(response: unknown, operation: string): string {
+    if (!response || typeof response !== "object" || !("html_url" in response) || typeof response.html_url !== "string" || !response.html_url) {
+      throw new Error(`GitHub ${operation} response did not contain an html_url`);
+    }
+    return response.html_url;
   }
 
   async function paged(path: string, signal?: AbortSignal, objectKey?: string): Promise<PageResult> {
@@ -171,7 +283,8 @@ export default function githubTools(pi: ExtensionAPI) {
     parameters: Type.Object({ pull_number: Type.Optional(Type.Integer({ minimum: 1, description: "Pull request number; defaults to the triggering event" })) }),
     async execute(_id, params, signal) {
       const number = numberOrEvent(params.pull_number);
-      return textResult(bounded(await ghApi(`repos/${repository()}/pulls/${number}`, signal, ["-H", "Accept: application/vnd.github.diff"])), { pull_number: number });
+      const path = `repos/${repository()}/pulls/${number}`;
+      return textResult(await exec("gh", ["api", path, "-H", "Accept: application/vnd.github.diff"], signal), { pull_number: number });
     },
   });
 
@@ -257,8 +370,8 @@ export default function githubTools(pi: ExtensionAPI) {
     name: "post_comment", label: "Post GitHub comment", description: "Post a comment on a GitHub issue or pull request. Requires issues:write or pull-requests:write.", promptSnippet: "Post an issue or pull request comment",
     parameters: Type.Object({ number: Type.Optional(Type.Integer({ minimum: 1 })), body: Type.String({ minLength: 1 }) }),
     async execute(_id, params, signal) {
-      const response = JSON.parse(await apiWithJson(`repos/${repository()}/issues/${numberOrEvent(params.number)}/comments`, "POST", { body: params.body }, signal));
-      return textResult(bounded(`Posted comment: ${response.html_url}`), response);
+      const response: unknown = JSON.parse(await apiWithJson(`repos/${repository()}/issues/${numberOrEvent(params.number)}/comments`, "POST", { body: params.body }, signal));
+      return textResult(bounded(`Posted comment: ${responseUrl(response, "comment")}`), response as Record<string, unknown>);
     },
   });
 
@@ -269,8 +382,8 @@ export default function githubTools(pi: ExtensionAPI) {
       comments: Type.Optional(Type.Array(Type.Object({ path: Type.String(), line: Type.Integer({ minimum: 1 }), side: StringEnum(["LEFT", "RIGHT"] as const), body: Type.String({ minLength: 1 }), start_line: Type.Optional(Type.Integer({ minimum: 1 })), start_side: Type.Optional(StringEnum(["LEFT", "RIGHT"] as const)) }))),
     }),
     async execute(_id, params, signal) {
-      const response = JSON.parse(await apiWithJson(`repos/${repository()}/pulls/${numberOrEvent(params.pull_number)}/reviews`, "POST", { event: params.event, body: params.body, comments: params.comments }, signal));
-      return textResult(bounded(`Created review: ${response.html_url}`), response);
+      const response: unknown = JSON.parse(await apiWithJson(`repos/${repository()}/pulls/${numberOrEvent(params.pull_number)}/reviews`, "POST", { event: params.event, body: params.body, comments: params.comments }, signal));
+      return textResult(bounded(`Created review: ${responseUrl(response, "review")}`), response as Record<string, unknown>);
     },
   });
 
@@ -285,9 +398,10 @@ export default function githubTools(pi: ExtensionAPI) {
       await execRaw("git", ["switch", "--create", branch], signal);
       await commitChanges(params.commit_message, params.paths, signal, ctx);
       await execRaw("git", ["push", "--set-upstream", "origin", `HEAD:refs/heads/${branch}`], signal);
-      const args = ["pr", "create", "--repo", repository(), "--head", branch, "--title", params.title, "--body", params.body];
-      if (params.base) args.push("--base", params.base);
-      const url = (await execRaw("gh", args, signal)).trim();
+      const body: Record<string, string> = { title: params.title, body: params.body, head: branch };
+      if (params.base) body.base = params.base;
+      const response: unknown = JSON.parse(await apiWithJson(`repos/${repository()}/pulls`, "POST", body, signal));
+      const url = responseUrl(response, "pull request creation");
       return textResult(bounded(`Created pull request: ${url}`), { url, branch, paths: params.paths });
     },
   });
@@ -299,6 +413,7 @@ export default function githubTools(pi: ExtensionAPI) {
       const repo = repository();
       const number = numberOrEvent(params.pull_number);
       const pull = JSON.parse(await ghApi(`repos/${repo}/pulls/${number}`, signal));
+      const pullUrl = responseUrl(pull, "pull request");
       if (pull.head?.repo?.full_name !== repo) throw new Error("Updating pull requests from forks is not supported");
       const currentBranch = (await execRaw("git", ["branch", "--show-current"], signal)).trim();
       if (currentBranch !== pull.head.ref) throw new Error(`Current branch ${currentBranch || "(detached)"} does not match pull request branch ${pull.head.ref}`);
@@ -308,9 +423,10 @@ export default function githubTools(pi: ExtensionAPI) {
         const body: Record<string, string> = {};
         if (params.title !== undefined) body.title = params.title;
         if (params.body !== undefined) body.body = params.body;
-        await apiWithJson(`repos/${repo}/pulls/${number}`, "PATCH", body, signal);
+        const response: unknown = JSON.parse(await apiWithJson(`repos/${repo}/pulls/${number}`, "PATCH", body, signal));
+        responseUrl(response, "pull request update");
       }
-      return textResult(bounded(`Updated pull request: ${pull.html_url}`), { url: pull.html_url, branch: pull.head.ref, paths: params.paths });
+      return textResult(bounded(`Updated pull request: ${pullUrl}`), { url: pullUrl, branch: pull.head.ref, paths: params.paths });
     },
   });
 }
