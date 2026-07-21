@@ -1,5 +1,5 @@
 name: Pi Agent
-description: Run the Pi coding agent in a GitHub Actions workflow
+description: Composable GitHub Action for running the Pi coding agent in non-interactive workflows
 branding:
   icon: terminal
   color: purple
