@@ -62,7 +62,7 @@ run_pi() {
     PI_AGENT_TEST_ARGS="$arguments_file" \
     PI_AGENT_TEST_STDIN="$stdin_file" \
     PI_AGENT_INPUT_PROMPT="$prompt" \
-    PI_AGENT_INPUT_API_KEY= \
+    PI_AGENT_INPUT_API_KEY=test-api-key \
     PI_AGENT_INPUT_PROVIDER=opencode \
     PI_AGENT_INPUT_MODEL=test-model \
     PI_AGENT_INPUT_THINKING=medium \
@@ -119,6 +119,15 @@ for thinking in off minimal low medium high xhigh max; do
   has_argument "$thinking" || fail "thinking level was not passed: $thinking"
 done
 
+if run_pi PI_AGENT_INPUT_API_KEY= >/dev/null 2>&1; then
+  fail 'empty api-key was accepted'
+fi
+if run_pi PI_AGENT_INPUT_PROVIDER= >/dev/null 2>&1; then
+  fail 'empty provider was accepted'
+fi
+if run_pi PI_AGENT_INPUT_MODEL= >/dev/null 2>&1; then
+  fail 'empty model was accepted'
+fi
 if run_pi PI_AGENT_INPUT_THINKING=extreme >/dev/null 2>&1; then
   fail 'unsupported thinking level was accepted'
 fi

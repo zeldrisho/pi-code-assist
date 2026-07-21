@@ -38,5 +38,6 @@ jobs:
         uses: ./
         with:
           prompt: Review the action.
+          api-key: integration-test-key
           provider: opencode
           model: deepseek-v4-flash-free

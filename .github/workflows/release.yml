@@ -35,6 +35,9 @@ jobs:
         uses: ./
         with:
           prompt: Validate the release action.
+          api-key: integration-test-key
+          provider: opencode
+          model: deepseek-v4-flash-free
 
   release:
     needs: validate

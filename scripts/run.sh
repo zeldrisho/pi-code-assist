@@ -10,6 +10,9 @@ fail() {
 [[ -n "${RUNNER_TEMP:-}" ]] || fail 'RUNNER_TEMP is not set'
 [[ -n "${GITHUB_OUTPUT:-}" ]] || fail 'GITHUB_OUTPUT is not set'
 [[ -n "${PI_AGENT_INPUT_PROMPT:-}" ]] || fail 'prompt is required'
+[[ -n "${PI_AGENT_INPUT_API_KEY:-}" ]] || fail 'api-key is required'
+[[ -n "${PI_AGENT_INPUT_PROVIDER:-}" ]] || fail 'provider is required'
+[[ -n "${PI_AGENT_INPUT_MODEL:-}" ]] || fail 'model is required'
 
 version="${PI_AGENT_INPUT_VERSION:-0.80.10}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]] || \
@@ -108,9 +111,9 @@ fi
 args=(--print --no-session)
 [[ -n "$thinking" ]] && args+=(--thinking "$thinking")
 [[ "$project_trust" == true ]] && args+=(--approve) || args+=(--no-approve)
-[[ -n "${PI_AGENT_INPUT_PROVIDER:-}" ]] && args+=(--provider "$PI_AGENT_INPUT_PROVIDER")
-[[ -n "${PI_AGENT_INPUT_MODEL:-}" ]] && args+=(--model "$PI_AGENT_INPUT_MODEL")
-[[ -n "${PI_AGENT_INPUT_API_KEY:-}" ]] && args+=(--api-key "$PI_AGENT_INPUT_API_KEY")
+args+=(--provider "$PI_AGENT_INPUT_PROVIDER")
+args+=(--model "$PI_AGENT_INPUT_MODEL")
+args+=(--api-key "$PI_AGENT_INPUT_API_KEY")
 for source in "${package_sources[@]}"; do
   args+=(--extension "$source")
 done

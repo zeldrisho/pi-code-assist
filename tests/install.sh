@@ -22,6 +22,9 @@ output="$(env \
   RUNNER_TEMP="$temporary_directory/runner" \
   GITHUB_OUTPUT="$temporary_directory/output" \
   PI_AGENT_INPUT_PROMPT=installation-probe \
+  PI_AGENT_INPUT_API_KEY=installation-probe \
+  PI_AGENT_INPUT_PROVIDER=opencode \
+  PI_AGENT_INPUT_MODEL=installation-probe \
   PI_AGENT_INPUT_VERSION="$version" \
   PI_AGENT_TEST_INSTALL_ONLY=true \
   "$repository_root/scripts/run.sh")"
