@@ -1,0 +1,121 @@
+import { readFile } from 'node:fs/promises';
+import { describe, expect, test } from 'vite-plus/test';
+
+interface Metadata {
+  default: string;
+  description: string;
+  required: string;
+}
+
+function yamlSection(document: string, name: string): Map<string, Metadata> {
+  const lines = document.split('\n');
+  const start = lines.indexOf(`${name}:`);
+  if (start < 0) throw new Error(`Missing ${name} section in action.yml`);
+  const values = new Map<string, Metadata>();
+  let current: Metadata | undefined;
+  for (const line of lines.slice(start + 1)) {
+    if (/^[a-z][a-z-]*:/.test(line)) break;
+    const item = line.match(/^  ([a-z][a-z-]*):$/);
+    if (item) {
+      current = { default: '—', description: '', required: 'false' };
+      values.set(item[1], current);
+      continue;
+    }
+    const field = line.match(/^    (default|description|required):\s*(.*)$/);
+    if (current && field) {
+      current[field[1] as keyof Metadata] = field[2].trim().replace(/^["']|["']$/g, '');
+    }
+  }
+  return values;
+}
+
+function markdownTable(document: string, heading: string): Map<string, string[]> {
+  const match = document.match(
+    new RegExp(`^## ${heading}\\n.*?\\n(\\| .*?)(?=\\n\\n|\\n## )`, 'ms'),
+  );
+  if (!match) throw new Error(`Missing README ${heading} table`);
+  return new Map(
+    match[1]
+      .split('\n')
+      .slice(2)
+      .map((line) =>
+        line
+          .trim()
+          .replace(/^\||\|$/g, '')
+          .split('|')
+          .map((cell) => cell.trim()),
+      )
+      .filter((cells) => cells.length >= 2)
+      .map((cells) => [cells[0].replaceAll('`', ''), cells]),
+  );
+}
+
+const action = await readFile('action.yml', 'utf8');
+const readme = await readFile('README.md', 'utf8');
+const runtime = await readFile('scripts/run.ts', 'utf8');
+const extension = await readFile('extensions/github-tools.ts', 'utf8');
+
+describe('public action contract', () => {
+  test('keeps action and README inputs and outputs synchronized', () => {
+    const inputs = yamlSection(action, 'inputs');
+    const outputs = yamlSection(action, 'outputs');
+    const readmeInputs = markdownTable(readme, 'Inputs');
+    const readmeOutputs = markdownTable(readme, 'Outputs');
+    expect([...inputs.keys()]).toEqual([...readmeInputs.keys()]);
+    expect([...outputs.keys()]).toEqual([...readmeOutputs.keys()]);
+    for (const [name, metadata] of inputs) {
+      const documented = readmeInputs.get(name)!;
+      expect(documented[1], `required value for ${name}`).toBe(
+        metadata.required === 'true' ? 'Yes' : 'No',
+      );
+      const expectedDefault =
+        metadata.default === '—' && name === 'thinking' ? 'Pi default' : metadata.default;
+      expect(documented[2].replaceAll('`', ''), `default value for ${name}`).toBe(expectedDefault);
+    }
+  });
+
+  test('keeps documented enum values and package path rules synchronized', () => {
+    const inputs = yamlSection(action, 'inputs');
+    const readmeInputs = markdownTable(readme, 'Inputs');
+    for (const name of ['thinking', 'github-tools']) {
+      const actionValues = new Set(
+        inputs
+          .get(name)!
+          .description.match(/\b(?:off|minimal|low|medium|high|xhigh|max|none|read|write)\b/g),
+      );
+      const readmeValues = new Set(
+        [
+          ...readmeInputs
+            .get(name)![3]
+            .matchAll(/`(off|minimal|low|medium|high|xhigh|max|none|read|write)`/g),
+        ].map((match) => match[1]),
+      );
+      expect(actionValues).toEqual(readmeValues);
+    }
+    expect(readme).toContain('must begin with `./`');
+  });
+
+  test('requires callers to select an exact Pi version', () => {
+    const versionInput = yamlSection(action, 'inputs').get('pi-version')!;
+    expect(versionInput.required).toBe('true');
+    expect(versionInput.default).toBe('—');
+    expect(runtime).not.toContain('DEFAULT_PI_VERSION');
+    expect(runtime).toContain("required(env, 'PI_AGENT_INPUT_VERSION', 'pi-version is required')");
+  });
+
+  test('selects exactly the tools registered by each GitHub mode', () => {
+    const registered = [...extension.matchAll(/pi\.registerTool\(\{\s*name:\s*'([^']+)'/g)].map(
+      (match) => match[1],
+    );
+    const modeBoundary = extension.indexOf("if (mode !== 'write') return;");
+    expect(modeBoundary).toBeGreaterThan(0);
+    const readRegistered = [
+      ...extension.slice(0, modeBoundary).matchAll(/pi\.registerTool\(\{\s*name:\s*'([^']+)'/g),
+    ].map((match) => match[1]);
+    const writeRegistered = registered.slice(readRegistered.length);
+    const readSelection = runtime.match(/let names = '([^']+)'/)?.[1].split(',');
+    const writeSelection = runtime.match(/names \+= ',([^']+)'/)?.[1].split(',');
+    expect(readSelection).toEqual(readRegistered);
+    expect(writeSelection).toEqual(writeRegistered);
+  });
+});

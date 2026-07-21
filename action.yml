@@ -27,7 +27,7 @@ inputs:
   project-trust:
     description: Whether to trust and load project-local Pi settings and executable extensions
     required: false
-    default: "false"
+    default: 'false'
   packages:
     description: Exact-pinned npm/git Pi packages or ./-prefixed workspace package paths, one per line
     required: false
@@ -37,8 +37,7 @@ inputs:
     default: none
   pi-version:
     description: Exact @earendil-works/pi-coding-agent version to install
-    required: false
-    default: 0.80.10
+    required: true
   working-directory:
     description: Directory under GITHUB_WORKSPACE in which Pi runs
     required: false
@@ -55,9 +54,21 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Set up Vite+
+      uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
+      with:
+        node-version: '24.18.0'
+        cache: false
+
+    - name: Install the action runtime
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: vp install --prod --frozen-lockfile --ignore-scripts
+
     - id: pi
       name: Run Pi
       shell: bash
+      working-directory: ${{ github.action_path }}
       env:
         PI_AGENT_INPUT_PROMPT: ${{ inputs.prompt }}
         PI_AGENT_INPUT_API_KEY: ${{ inputs.api-key }}
@@ -71,4 +82,4 @@ runs:
         PI_AGENT_INPUT_GITHUB_TOOLS: ${{ inputs.github-tools }}
         PI_AGENT_INPUT_VERSION: ${{ inputs.pi-version }}
         PI_AGENT_INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
-      run: "$GITHUB_ACTION_PATH/scripts/run.sh"
+      run: vp exec tsx scripts/run.ts

@@ -20,7 +20,7 @@ This is a single-component repository using Release Please's config-free `simple
 
 GitHub suppresses workflow events created by `GITHUB_TOKEN`. A newly created or updated release pull request therefore needs a manual CI dispatch against its head branch before it can satisfy the protected `check` requirement:
 
-```bash
+```text
 gh workflow run CI --repo zeldrisho/pi-code-assist --ref <release-please-branch>
 gh run list --repo zeldrisho/pi-code-assist --workflow CI --branch <release-please-branch> --limit 5
 ```

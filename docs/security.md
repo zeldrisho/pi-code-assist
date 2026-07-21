@@ -1,17 +1,17 @@
 # Security invariants
 
-Use this checklist when reviewing changes to `action.yml`, `scripts/run.sh`, bundled extensions, or workflows.
+Use this checklist when reviewing changes to `action.yml`, `scripts/run.ts`, bundled extensions, or workflows.
 
 - Treat every action input, repository file, context file, and model response as untrusted data.
 - Pass `prompt` through standard input as data; never evaluate it or construct a shell command from it.
-- Accept only exact Pi versions and install with lifecycle scripts, audit, funding messages, telemetry, and update checks disabled.
+- Require an exact Pi version and install through Vite+ with lifecycle scripts, telemetry, and update checks disabled.
 - Resolve `working-directory` canonically and require it to remain inside `GITHUB_WORKSPACE`, including through symlinks.
 - Default to the read-only tool allowlist, no GitHub tools, and `--no-approve`; broaden any of them only through explicit inputs.
 - Remember that project trust controls project-local Pi configuration and executable resources, not context files or tool sandboxing.
 - Do not use prompt sanitization as a substitute for trust boundaries, minimal tools, and least-privilege workflow permissions.
 - Treat Pi packages as executable code. Require immutable npm/git identities, constrain local package paths to the workspace, and load packages only when explicitly configured or through a trusted project.
 - Mask supplied API keys and GitHub tokens before invoking Pi and never copy them into action outputs.
-- Preserve Pi's exit status when streaming through `tee`; a partial response must not turn a failed run into success.
+- Preserve Pi's exit status while streaming its response; a partial response must not turn a failed run into success.
 - Bound expression-safe output. Keep the response file available when the `response` output is too large.
 - Do not grant token permissions, post comments, push commits, or execute model output implicitly. GitHub write tools must require explicit action inputs and workflow permissions.
 - Keep GitHub reads paginated and bounded with explicit truncation metadata. Stream diffs and logs through bounded head/tail collectors so command output is never buffered without limit, preserve UTF-8 boundaries, and clean child processes on timeout or cancellation.
@@ -19,6 +19,6 @@ Use this checklist when reviewing changes to `action.yml`, `scripts/run.sh`, bun
 - Require GitHub commit tools to stage explicit workspace-relative paths, reject traversal and symlink escapes, and reject cross-repository pull-request updates.
 - If future features manage temporary credentials or trusted configuration, clean them up in a separate `always()` action step so process failures cannot skip cleanup.
 - Keep every external action pinned to a reviewed full commit SHA.
-- Treat the exact Pi package as the direct trust pin while acknowledging that npm resolves its transitive ranges at installation time. Rely on npm registry integrity verification plus the scheduled real-install compatibility test; follow the update and rollback policy in [`development.md`](development.md).
+- Treat the exact Pi package as the direct trust pin while acknowledging that runtime overrides resolve its transitive ranges at installation time. Rely on registry integrity verification plus the scheduled compatibility test; follow the update and rollback policy in [`development.md`](development.md).
 
 Run all commands in `AGENTS.md` before proposing a runtime or workflow change.

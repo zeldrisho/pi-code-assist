@@ -35,6 +35,7 @@ jobs:
           api-key: ${{ secrets.OPENCODE_API_KEY }}
           provider: opencode
           model: deepseek-v4-flash-free
+          pi-version: 0.80.10
           github-tools: read
           prompt: |
             Review this pull request using the GitHub PR diff tool and checked-out files.
@@ -51,19 +52,19 @@ The example uses known-good immutable pins rather than automatically tracking th
 
 ## Inputs
 
-| Input | Required | Default | Description |
-| --- | --- | --- | --- |
-| `prompt` | Yes | — | Instruction sent to Pi. Passed as data, not interpolated into shell code. |
-| `api-key` | Yes | — | Provider API key. Store it in GitHub Actions secrets. |
-| `provider` | Yes | — | Pi provider name, such as `opencode`. |
-| `model` | Yes | — | Model ID or pattern accepted by Pi. |
-| `thinking` | No | Pi default | Optional override: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. When omitted, Pi selects its configured default and adapts it to the model's supported levels. |
-| `tools` | No | `read,grep,find,ls` | Comma-separated tool allowlist. Set `all` to use Pi's defaults, including write-capable tools. |
-| `project-trust` | No | `false` | Set to `true` to load project `.pi` settings and executable project extensions. |
-| `packages` | No | — | Exact-pinned npm/git Pi packages or package paths from the checked-out workspace, one per line. |
-| `github-tools` | No | `none` | `none` disables GitHub-aware tools and does not pass the job token to Pi. `read` or `write` adds GitHub-aware tools using the job's `github-actions[bot]` identity. |
-| `pi-version` | No | `0.80.10` | Exact Pi package version. Floating tags and ranges are rejected. |
-| `working-directory` | No | `.` | Existing directory below `GITHUB_WORKSPACE`. |
+| Input               | Required | Default             | Description                                                                                                                                                                     |
+| ------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prompt`            | Yes      | —                   | Instruction sent to Pi. Passed as data, not interpolated into shell code.                                                                                                       |
+| `api-key`           | Yes      | —                   | Provider API key. Store it in GitHub Actions secrets.                                                                                                                           |
+| `provider`          | Yes      | —                   | Pi provider name, such as `opencode`.                                                                                                                                           |
+| `model`             | Yes      | —                   | Model ID or pattern accepted by Pi.                                                                                                                                             |
+| `thinking`          | No       | Pi default          | Optional override: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. When omitted, Pi selects its configured default and adapts it to the model's supported levels. |
+| `tools`             | No       | `read,grep,find,ls` | Comma-separated tool allowlist. Set `all` to use Pi's defaults, including write-capable tools.                                                                                  |
+| `project-trust`     | No       | `false`             | Set to `true` to load project `.pi` settings and executable project extensions.                                                                                                 |
+| `packages`          | No       | —                   | Exact-pinned npm/git Pi packages or package paths from the checked-out workspace, one per line.                                                                                 |
+| `github-tools`      | No       | `none`              | `none` disables GitHub-aware tools and does not pass the job token to Pi. `read` or `write` adds GitHub-aware tools using the job's `github-actions[bot]` identity.             |
+| `pi-version`        | Yes      | —                   | Exact Pi package version. Floating tags and ranges are rejected.                                                                                                                |
+| `working-directory` | No       | `.`                 | Existing directory below `GITHUB_WORKSPACE`.                                                                                                                                    |
 
 Pass the required `api-key` input from a GitHub Actions secret. Pi inherits provider-specific environment variables, but they do not replace this required action input.
 
@@ -71,9 +72,9 @@ Browse [Pi models](https://pi.dev/models) to choose a provider and model for you
 
 ## Outputs
 
-| Output | Description |
-| --- | --- |
-| `response` | Pi's text response. Suitable for short downstream expressions. |
+| Output          | Description                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------- |
+| `response`      | Pi's text response. Suitable for short downstream expressions.                                          |
 | `response-path` | Absolute response file path. Prefer this for comments and other multiline or potentially large results. |
 
 GitHub limits job outputs using an approximate UTF-16 measurement. The `response` output supports at most **400,000 UTF-8 bytes**, including multibyte text; larger responses fail with an instruction to use `response-path`. The response file and streamed job log remain available.
@@ -114,6 +115,7 @@ steps:
       tools: all
       provider: opencode
       model: deepseek-v4-flash-free
+      pi-version: 0.80.10
       prompt: Implement the requested change and create a pull request.
 ```
 

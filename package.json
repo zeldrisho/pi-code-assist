@@ -1,0 +1,25 @@
+{
+  "name": "pi-code-assist",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "tsx": "4.20.6"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "0.80.10",
+    "@earendil-works/pi-coding-agent": "0.80.10",
+    "@types/node": "24.1.0",
+    "typebox": "1.1.38",
+    "typescript": "5.9.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.15.1",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.15.1"
+}
