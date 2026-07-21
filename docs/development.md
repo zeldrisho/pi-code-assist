@@ -14,6 +14,7 @@ The action itself remains a dependency-free composite action. Its runtime instal
 | --- | --- |
 | `action.yml` | User-facing action metadata and composition |
 | `scripts/run.sh` | Input validation, Pi installation, execution, and outputs |
+| `extensions/github-tools.ts` | Optional read/write GitHub tools loaded into Pi |
 | `tests/run.sh` | Runtime behavior and failure-path tests |
 | `tests/smoke-action.sh` | Isolated action-file smoke test |
 | `.github/workflows/ci.yml` | Required `check` job |

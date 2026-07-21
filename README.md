@@ -55,9 +55,11 @@ Replace the example revision with a reviewed full commit SHA. Pinning actions pr
 | `api-key` | No | — | Provider API key. Store it in GitHub Actions secrets. |
 | `provider` | No | Pi default | Pi provider name, such as `opencode`. |
 | `model` | No | Pi default | Model ID or pattern accepted by Pi. |
-| `thinking` | No | `medium` | `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. |
+| `thinking` | No | Pi default | Optional override: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. When omitted, Pi selects its configured default and adapts it to the model's supported levels. |
 | `tools` | No | `read,grep,find,ls` | Comma-separated tool allowlist. Set `all` to use Pi's defaults, including write-capable tools. |
 | `project-trust` | No | `false` | Set to `true` to load project `.pi` settings and executable project extensions. |
+| `packages` | No | — | Exact-pinned npm/git Pi packages or package paths from the checked-out workspace, one per line. |
+| `github-tools` | No | `none` | `none`, `read`, or `write`. Adds GitHub-aware tools using the job's `github-actions[bot]` identity. |
 | `pi-version` | No | `0.80.10` | Exact Pi package version. Floating tags and ranges are rejected. |
 | `working-directory` | No | `.` | Existing directory below `GITHUB_WORKSPACE`. |
 
@@ -84,6 +86,48 @@ See the [DeepSeek V4 Flash Free model page](https://pi.dev/models/opencode/deeps
 
 GitHub limits output sizes. This action rejects responses above 900 KB; the streamed job log remains available.
 
+## Pi packages
+
+Load custom Pi packages entirely on the GitHub runner with the `packages` input:
+
+```yaml
+with:
+  packages: npm:@zeldrisho/pi-web-fetch@0.3.0
+  tools: all
+```
+
+Npm packages require exact semantic versions and git packages require full 40-character commit SHAs. Multiple packages may be provided one per line. Relative paths are resolved from `GITHUB_WORKSPACE`, must already exist in the checkout, and cannot escape through symlinks. Packages are loaded temporarily for this Pi invocation and can contain executable extensions; review them before use. Custom package tools must also be selected through `tools`, or use `tools: all`.
+
+Trusted project `.pi/settings.json` files may also declare packages when `project-trust: true`. The explicit `packages` input works independently of project trust because supplying it is itself an opt-in to execute that package.
+
+## GitHub-aware tasks
+
+Set `github-tools` to expose event-aware GitHub tools. `read` provides issue/PR threads, PR diffs, CI status, and workflow logs. `write` additionally provides comments, pull-request reviews, and tools to create or update pull requests.
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+steps:
+  - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+    with:
+      fetch-depth: 0
+
+  - uses: zeldrisho/pi-agent@0123456789abcdef0123456789abcdef01234567
+    env:
+      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+    with:
+      github-tools: write
+      tools: all
+      provider: opencode
+      model: deepseek-v4-flash-free
+      prompt: Implement the requested change and create a pull request.
+```
+
+GitHub tools automatically use the job-scoped token and act as `github-actions[bot]`; user PATs and GitHub App tokens are not accepted. The action does not grant permissions itself, so write tools work only when the workflow explicitly grants the corresponding permissions. Creating or updating a pull request also requires checkout credentials capable of pushing to the repository; pull requests from forks are not updated. Events created by `github-actions[bot]` generally do not trigger additional workflow runs. Keep `github-tools: none` or `read` for untrusted triggers, and restrict who can invoke workflows with write access.
+
 ## Allowing changes
 
 Pi is read-only by default. To let it edit the checked-out repository, explicitly opt in:
@@ -106,7 +150,9 @@ AI-agent workflows process untrusted repository and event content. In particular
 - grant the job only the minimum `GITHUB_TOKEN` permissions;
 - use read-only tools for review tasks;
 - pin this and all third-party actions to full commit SHAs; and
-- treat model output as untrusted data in later shell and API steps.
+- treat model output as untrusted data in later shell and API steps;
+- treat explicitly configured Pi packages as executable code and pin npm/git sources immutably; and
+- enable GitHub write tools only for authorized triggers with narrowly scoped token permissions.
 
 Project context files can still influence the model even when project trust is disabled. Project trust controls project-local settings and executable resources; it is not a prompt-injection defense.
 
