@@ -30,13 +30,10 @@ Keep the action narrowly scoped around one non-interactive Pi invocation. Prefer
 Run the complete suite before pushing:
 
 ```bash
-bash -n scripts/run.sh tests/*.sh
-shellcheck scripts/run.sh tests/*.sh
-actionlint
-./tests/run.sh
-./tests/smoke-action.sh
-git diff --check
+./scripts/validate.sh
 ```
+
+The shared script runs shell syntax and ShellCheck, Actionlint, runtime behavior and boundary tests, the GitHub extension harness against the configured Pi version, README/action contract checks, the isolated action smoke test, and whitespace checks. CI and Release both invoke it and then exercise the composed action in a workflow step.
 
 Runtime changes require boundary and failure-path coverage. Workflow changes must preserve read-only default permissions and pin every external action to a reviewed full commit SHA.
 

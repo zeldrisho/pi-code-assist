@@ -32,7 +32,8 @@ cat > "$PI_AGENT_TEST_STDIN"
 case "${PI_AGENT_TEST_MODE:-success}" in
   success) printf 'review complete\nsecond line\n' ;;
   fail) printf 'partial response\n'; exit 23 ;;
-  oversized) head -c 900001 /dev/zero | tr '\0' x ;;
+  sized) head -c "${PI_AGENT_TEST_SIZE:?}" /dev/zero | tr '\0' x ;;
+  unicode) python3 -c 'print("😀" * 100000, end="")' ;;
   *) exit 99 ;;
 esac
 SCRIPT
@@ -196,11 +197,17 @@ fi
 grep -q 'Pi exited with status 23' "$failure_output" || fail 'Pi exit status was not reported'
 grep -q '^response-path=' "$output_file" || fail 'failed Pi run did not expose response-path'
 
-if run_pi PI_AGENT_TEST_MODE=oversized >/dev/null 2> "$temporary_directory/oversized-error"; then
-  fail 'oversized response was accepted'
+for size in 399999 400000; do
+  run_pi PI_AGENT_TEST_MODE=sized PI_AGENT_TEST_SIZE="$size" >/dev/null || \
+    fail "response at or below the documented boundary was rejected: $size"
+done
+run_pi PI_AGENT_TEST_MODE=unicode >/dev/null || fail '400,000-byte multibyte Unicode response was rejected'
+if run_pi PI_AGENT_TEST_MODE=sized PI_AGENT_TEST_SIZE=400001 >/dev/null 2> "$temporary_directory/oversized-error"; then
+  fail 'response above the documented boundary was accepted'
 fi
-grep -q 'response exceeds the safe GitHub Actions output size' \
+grep -q 'response exceeds the 400000-byte GitHub Actions response limit; use response-path instead' \
   "$temporary_directory/oversized-error" || fail 'oversized response error was not reported'
+grep -q '^response-path=' "$output_file" || fail 'oversized response did not expose response-path'
 
 if run_pi PI_AGENT_INPUT_WORKING_DIRECTORY=.. >/dev/null 2>&1; then
   fail 'parent working directory was accepted'

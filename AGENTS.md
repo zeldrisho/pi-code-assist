@@ -4,10 +4,13 @@
 
 | Task | Command |
 | --- | --- |
-| Check shell syntax | `bash -n scripts/run.sh tests/*.sh` |
-| Lint shell | `shellcheck scripts/run.sh tests/*.sh` |
+| Complete validation | `./scripts/validate.sh` |
+| Check shell syntax | `bash -n scripts/*.sh tests/*.sh` |
+| Lint shell | `shellcheck scripts/*.sh tests/*.sh` |
 | Validate workflows | `actionlint` |
 | Run behavior tests | `./tests/run.sh` |
+| Test GitHub extension | `./tests/github-tools.sh` |
+| Check action contract | `./tests/contract.sh` |
 | Smoke-test isolated action files | `./tests/smoke-action.sh` |
 
 ## Sources of Truth

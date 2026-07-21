@@ -14,7 +14,8 @@ Use this checklist when reviewing changes to `action.yml`, `scripts/run.sh`, bun
 - Preserve Pi's exit status when streaming through `tee`; a partial response must not turn a failed run into success.
 - Bound expression-safe output. Keep the response file available when the `response` output is too large.
 - Do not grant token permissions, post comments, push commits, or execute model output implicitly. GitHub write tools must require explicit action inputs and workflow permissions.
-- Keep GitHub tool output bounded, pass API request bodies through files rather than shell interpolation, and reject cross-repository pull-request updates.
+- Keep GitHub reads paginated and bounded with explicit truncation metadata, pass API request bodies through protected temporary files rather than shell interpolation, and clean those files after success or failure.
+- Require GitHub commit tools to stage explicit workspace-relative paths, reject traversal and symlink escapes, and reject cross-repository pull-request updates.
 - If future features manage temporary credentials or trusted configuration, clean them up in a separate `always()` action step so process failures cannot skip cleanup.
 - Keep every external action pinned to a reviewed full commit SHA.
 

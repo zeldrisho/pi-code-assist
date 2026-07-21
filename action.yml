@@ -29,7 +29,7 @@ inputs:
     required: false
     default: "false"
   packages:
-    description: Exact-pinned npm/git Pi packages or workspace-relative package paths, one per line
+    description: Exact-pinned npm/git Pi packages or ./-prefixed workspace package paths, one per line
     required: false
   github-tools:
     description: GitHub tools to expose to Pi (none, read, or write)
