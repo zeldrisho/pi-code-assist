@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/zeldrisho/pi-agent/compare/v0.1.0...v0.2.0) (2026-07-21)
+
+
+### Features
+
+* harden action maintenance boundaries ([41b67a9](https://github.com/zeldrisho/pi-agent/commit/41b67a9f4e1b4130a6c2d764d3d7b9e715aa389f))
+
 ## 0.1.0 (2026-07-21)
 
 
