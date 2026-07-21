@@ -26,6 +26,7 @@ jobs:
         with:
           node-version: '24.18.0'
           cache: true
+          run-install: false
 
       - run: vp install --frozen-lockfile --ignore-scripts
       - run: vp check
