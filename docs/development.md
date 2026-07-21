@@ -8,6 +8,8 @@ Local validation requires Bash, ShellCheck, and Actionlint. Use GitHub CLI for r
 
 The action itself remains a dependency-free composite action. Its runtime installs the exact configured Pi version under `RUNNER_TEMP`.
 
+Keep the action narrowly scoped around one non-interactive Pi invocation. Prefer the Pi CLI process boundary, keep event-specific orchestration in workflows or opt-in extensions, and add only narrowly validated typed inputs for concrete user needs. Do not expose a generic shell-like Pi argument input.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -37,6 +39,10 @@ git diff --check
 ```
 
 Runtime changes require boundary and failure-path coverage. Workflow changes must preserve read-only default permissions and pin every external action to a reviewed full commit SHA.
+
+## Dependency updates
+
+Do not add automated dependency-update configuration or refresh pins routinely. For an applicable security advisory, select the smallest fixed version or reviewed replacement, verify its source and immutable identity, update only directly affected files, run the complete suite, and record the advisory and review evidence in the pull request.
 
 ## Development workflow
 

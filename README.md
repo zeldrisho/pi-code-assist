@@ -138,7 +138,7 @@ with:
   prompt: Fix the failing tests and explain the changes.
 ```
 
-This changes only files in the runner workspace. Pushing a branch or opening a pull request requires separate workflow steps and explicit `contents: write` permission.
+This changes only files in the runner workspace. Without `github-tools: write`, pushing a branch or opening a pull request requires separate workflow steps. GitHub write tools can perform those operations only with explicit token permissions and checkout credentials capable of pushing.
 
 ## Security
 
@@ -149,7 +149,7 @@ AI-agent workflows process untrusted repository and event content. In particular
 - keep `project-trust: false` unless `.pi` extensions and settings are reviewed;
 - grant the job only the minimum `GITHUB_TOKEN` permissions;
 - use read-only tools for review tasks;
-- pin this and all third-party actions to full commit SHAs; and
+- pin this and all third-party actions to full commit SHAs;
 - treat model output as untrusted data in later shell and API steps;
 - treat explicitly configured Pi packages as executable code and pin npm/git sources immutably; and
 - enable GitHub write tools only for authorized triggers with narrowly scoped token permissions.
