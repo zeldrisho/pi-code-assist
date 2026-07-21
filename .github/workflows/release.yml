@@ -1,15 +1,18 @@
-name: CI
+name: Release
 
 on:
   push:
-  pull_request:
-  workflow_dispatch:
+    branches: [main]
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  check:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -29,22 +32,19 @@ jobs:
       - name: Smoke-test isolated action files
         run: ./tests/smoke-action.sh
 
-      - name: Create fake Pi executable
-        env:
-          FAKE_PI: ${{ runner.temp }}/fake-pi
-        run: |
-          printf '#!/usr/bin/env bash\nprintf "integration test passed\\n"\n' > "$FAKE_PI"
-          chmod +x "$FAKE_PI"
-
-      - name: Test action metadata and composition
-        env:
-          PI_AGENT_TEST_BIN: ${{ runner.temp }}/fake-pi
-          PI_AGENT_TEST_ARGS: ${{ runner.temp }}/fake-pi-args
-        uses: ./
-        with:
-          prompt: Review the action.
-          provider: opencode
-          model: deepseek-v4-flash-free
-
       - name: Check whitespace
         run: git diff --check
+
+  release:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          token: ${{ github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
