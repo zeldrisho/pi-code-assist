@@ -202,8 +202,13 @@ export async function runAction(
       );
   }
 
+  // GitHub consumes these workflow commands to redact the values from subsequent job logs.
+  // codeql[js/clear-text-logging]
   console.log(`::add-mask::${apiKey}`);
-  if (env.PI_AGENT_GITHUB_TOKEN) console.log(`::add-mask::${env.PI_AGENT_GITHUB_TOKEN}`);
+  if (env.PI_AGENT_GITHUB_TOKEN) {
+    // codeql[js/clear-text-logging]
+    console.log(`::add-mask::${env.PI_AGENT_GITHUB_TOKEN}`);
+  }
 
   const installRoot = join(runnerTemp, `pi-agent-${version}`);
   const piExecutable =
