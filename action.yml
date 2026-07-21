@@ -1,0 +1,65 @@
+name: Pi Agent
+description: Run the Pi coding agent in a GitHub Actions workflow
+branding:
+  icon: terminal
+  color: purple
+
+inputs:
+  prompt:
+    description: Instruction to send to Pi
+    required: true
+  api-key:
+    description: API key for the selected model provider
+    required: false
+  provider:
+    description: Pi provider name, such as opencode
+    required: false
+  model:
+    description: Model ID or pattern accepted by Pi
+    required: false
+  thinking:
+    description: Thinking level (off, minimal, low, medium, high, xhigh, or max)
+    required: false
+    default: medium
+  tools:
+    description: Comma-separated Pi tool allowlist; use all to keep Pi defaults
+    required: false
+    default: read,grep,find,ls
+  project-trust:
+    description: Whether to trust and load project-local Pi settings and executable extensions
+    required: false
+    default: "false"
+  pi-version:
+    description: Exact @earendil-works/pi-coding-agent version to install
+    required: false
+    default: 0.80.10
+  working-directory:
+    description: Directory under GITHUB_WORKSPACE in which Pi runs
+    required: false
+    default: .
+
+outputs:
+  response:
+    description: Pi's final text response
+    value: ${{ steps.pi.outputs.response }}
+  response-path:
+    description: Absolute path containing Pi's final text response
+    value: ${{ steps.pi.outputs.response-path }}
+
+runs:
+  using: composite
+  steps:
+    - id: pi
+      name: Run Pi
+      shell: bash
+      env:
+        PI_AGENT_INPUT_PROMPT: ${{ inputs.prompt }}
+        PI_AGENT_INPUT_API_KEY: ${{ inputs.api-key }}
+        PI_AGENT_INPUT_PROVIDER: ${{ inputs.provider }}
+        PI_AGENT_INPUT_MODEL: ${{ inputs.model }}
+        PI_AGENT_INPUT_THINKING: ${{ inputs.thinking }}
+        PI_AGENT_INPUT_TOOLS: ${{ inputs.tools }}
+        PI_AGENT_INPUT_PROJECT_TRUST: ${{ inputs.project-trust }}
+        PI_AGENT_INPUT_VERSION: ${{ inputs.pi-version }}
+        PI_AGENT_INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      run: "$GITHUB_ACTION_PATH/scripts/run.sh"

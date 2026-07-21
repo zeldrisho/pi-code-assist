@@ -1,0 +1,17 @@
+# Security invariants
+
+Use this checklist when reviewing changes to `action.yml` or `scripts/run.sh`.
+
+- Treat every action input, repository file, context file, and model response as untrusted data.
+- Pass `prompt` through standard input as data; never evaluate it or construct a shell command from it.
+- Accept only exact Pi versions and install with lifecycle scripts, audit, funding messages, telemetry, and update checks disabled.
+- Resolve `working-directory` canonically and require it to remain inside `GITHUB_WORKSPACE`, including through symlinks.
+- Default to the read-only tool allowlist and `--no-approve`; broaden either only through explicit inputs.
+- Remember that project trust controls project-local Pi configuration and executable resources, not context files or tool sandboxing.
+- Mask a supplied API key before invoking Pi and never copy it into action outputs.
+- Preserve Pi's exit status when streaming through `tee`; a partial response must not turn a failed run into success.
+- Bound expression-safe output. Keep the response file available when the `response` output is too large.
+- Do not grant token permissions, post comments, push commits, or execute model output implicitly.
+- Keep every external action pinned to a reviewed full commit SHA.
+
+Run all commands in `AGENTS.md` before proposing a runtime or workflow change.
