@@ -59,6 +59,7 @@ runs:
       with:
         node-version: '24.18.0'
         cache: false
+        run-install: false
 
     - name: Install the action runtime
       shell: bash

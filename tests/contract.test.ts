@@ -51,6 +51,8 @@ function markdownTable(document: string, heading: string): Map<string, string[]>
 }
 
 const action = await readFile('action.yml', 'utf8');
+const ci = await readFile('.github/workflows/ci.yml', 'utf8');
+const release = await readFile('.github/workflows/release.yml', 'utf8');
 const readme = await readFile('README.md', 'utf8');
 const runtime = await readFile('scripts/run.ts', 'utf8');
 const extension = await readFile('extensions/github-tools.ts', 'utf8');
@@ -101,6 +103,13 @@ describe('public action contract', () => {
     expect(versionInput.default).toBe('—');
     expect(runtime).not.toContain('DEFAULT_PI_VERSION');
     expect(runtime).toContain("required(env, 'PI_AGENT_INPUT_VERSION', 'pi-version is required')");
+  });
+
+  test('keeps setup-vp automatic installation disabled', () => {
+    for (const document of [action, ci, release]) {
+      expect(document.match(/uses: voidzero-dev\/setup-vp@/g)).toHaveLength(1);
+      expect(document.match(/run-install: false/g)).toHaveLength(1);
+    }
   });
 
   test('selects exactly the tools registered by each GitHub mode', () => {
