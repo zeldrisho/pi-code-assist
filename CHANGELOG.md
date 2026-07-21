@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0](https://github.com/zeldrisho/pi-code-assist/compare/v0.2.1...v1.0.0) (2026-07-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* api-key, provider, and model must now be supplied explicitly.
+
+### Features
+
+* harden GitHub tools and validation ([c75d235](https://github.com/zeldrisho/pi-code-assist/commit/c75d235a5341fb2741c0944ac3730cadafa3295b))
+* require explicit model configuration ([998a94f](https://github.com/zeldrisho/pi-code-assist/commit/998a94f174d79ca26d36d25a9ed0b937435d046e))
+
+
+### Performance Improvements
+
+* reduce validation runtime ([57bd837](https://github.com/zeldrisho/pi-code-assist/commit/57bd8375a6f83634c4109c115ce14d0a823c44d6))
+
 ## [0.2.1](https://github.com/zeldrisho/pi-code-assist/compare/v0.2.0...v0.2.1) (2026-07-21)
 
 
