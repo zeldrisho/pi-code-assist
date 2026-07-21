@@ -13,7 +13,7 @@ Release Please maintains the version, changelog, tags, and GitHub releases for t
 
 ## Configuration
 
-`release-please-config.json` configures one root package (`.`) with the `simple` release strategy. Releases use immutable `v<version>` tags without a component prefix. The first proposed version is `0.1.0`.
+This is a single-component repository using the `simple` strategy. Manifest mode is used only to set the custom initial version: `release-please-config.json` configures the root component (`.`) at `0.1.0`, and `.release-please-manifest.json` remains empty until the first release. The required `version.txt` starts at `0.1.0`. Releases use immutable `v<version>` tags without a component prefix.
 
 `.github/workflows/release.yml` runs on pushes to `main`. It validates the pushed commit before granting its release job `contents: write` and `pull-requests: write`. The workflow uses the repository `GITHUB_TOKEN`; no personal token or publishing credential is required. Repository Actions settings must allow GitHub Actions to create pull requests; the workflow does not approve them.
 
