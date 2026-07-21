@@ -58,7 +58,7 @@ for name, metadata in inputs.items():
         raise SystemExit(f"Required mismatch for {name}: README={documented_required}, action.yml={expected_required}")
     documented = readme_inputs[name][2]
     expected = metadata["default"]
-    if expected == "—" and name in {"provider", "model", "thinking"}:
+    if expected == "—" and name == "thinking":
         expected = "Pi default"
     if documented.strip("`") != expected:
         raise SystemExit(f"Default mismatch for {name}: README={documented}, action.yml={expected}")

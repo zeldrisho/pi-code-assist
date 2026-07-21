@@ -10,13 +10,13 @@ inputs:
     required: true
   api-key:
     description: API key for the selected model provider
-    required: false
+    required: true
   provider:
     description: Pi provider name, such as opencode
-    required: false
+    required: true
   model:
     description: Model ID or pattern accepted by Pi
-    required: false
+    required: true
   thinking:
     description: Optional thinking-level override (off, minimal, low, medium, high, xhigh, or max)
     required: false

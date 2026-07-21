@@ -7,7 +7,7 @@ The safe defaults are read-only tools and **untrusted** project-local Pi configu
 ## Quick start
 
 ```yaml
-name: Pi review
+name: Pi Code Assist
 
 on:
   pull_request:
@@ -19,23 +19,25 @@ permissions:
 
 jobs:
   review:
-    # Repository secrets are normally unavailable to pull requests from forks.
-    if: github.event.pull_request.head.repo.fork == false
+    # Repository secrets are unavailable to fork and Dependabot pull requests.
+    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - id: pi
-        uses: zeldrisho/pi-code-assist@0123456789abcdef0123456789abcdef01234567
-        env:
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        # Known-good immutable pin; check Releases for a newer reviewed version.
+        uses: zeldrisho/pi-code-assist@5155bb17f9d6d99bc2f9aef87f6b8df65c3283cc # v0.2.1
         with:
+          api-key: ${{ secrets.OPENCODE_API_KEY }}
           provider: opencode
           model: deepseek-v4-flash-free
+          github-tools: read
           prompt: |
-            Review this pull request. Use git diff against the base branch.
+            Review this pull request using the GitHub PR diff tool and checked-out files.
             Report only actionable correctness, security, and test issues.
 
       - name: Post review
@@ -45,37 +47,27 @@ jobs:
         run: gh pr comment "${{ github.event.pull_request.number }}" --body-file "$RESPONSE_FILE"
 ```
 
-Replace the example revision with a reviewed full commit SHA. Pinning actions prevents an upstream tag from changing the code your workflow executes.
+The example uses known-good immutable pins rather than automatically tracking the newest code. Before adopting it, check [Releases](https://github.com/zeldrisho/pi-code-assist/releases) for a newer version and replace the action revision with that release's full commit SHA. Immutable pins prevent upstream tags from changing the code your workflow executes.
 
 ## Inputs
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
 | `prompt` | Yes | — | Instruction sent to Pi. Passed as data, not interpolated into shell code. |
-| `api-key` | No | — | Provider API key. Store it in GitHub Actions secrets. |
-| `provider` | No | Pi default | Pi provider name, such as `opencode`. |
-| `model` | No | Pi default | Model ID or pattern accepted by Pi. |
+| `api-key` | Yes | — | Provider API key. Store it in GitHub Actions secrets. |
+| `provider` | Yes | — | Pi provider name, such as `opencode`. |
+| `model` | Yes | — | Model ID or pattern accepted by Pi. |
 | `thinking` | No | Pi default | Optional override: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`. When omitted, Pi selects its configured default and adapts it to the model's supported levels. |
 | `tools` | No | `read,grep,find,ls` | Comma-separated tool allowlist. Set `all` to use Pi's defaults, including write-capable tools. |
 | `project-trust` | No | `false` | Set to `true` to load project `.pi` settings and executable project extensions. |
 | `packages` | No | — | Exact-pinned npm/git Pi packages or package paths from the checked-out workspace, one per line. |
-| `github-tools` | No | `none` | `none`, `read`, or `write`. Adds GitHub-aware tools using the job's `github-actions[bot]` identity. |
+| `github-tools` | No | `none` | `none` disables GitHub-aware tools and does not pass the job token to Pi. `read` or `write` adds GitHub-aware tools using the job's `github-actions[bot]` identity. |
 | `pi-version` | No | `0.80.10` | Exact Pi package version. Floating tags and ranges are rejected. |
 | `working-directory` | No | `.` | Existing directory below `GITHUB_WORKSPACE`. |
 
-Provider-specific environment variables such as `OPENCODE_API_KEY` also work because Pi inherits the step environment:
+Pass the required `api-key` input from a GitHub Actions secret. Pi inherits provider-specific environment variables, but they do not replace this required action input.
 
-```yaml
-- uses: zeldrisho/pi-code-assist@0123456789abcdef0123456789abcdef01234567
-  env:
-    OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-  with:
-    provider: opencode
-    model: deepseek-v4-flash-free
-    prompt: Summarize the repository architecture.
-```
-
-See the [DeepSeek V4 Flash Free model page](https://pi.dev/models/opencode/deepseek-v4-flash-free?name=deepseek-v4-flash-free) for its current Pi configuration.
+Browse [Pi models](https://pi.dev/models) to choose a provider and model for your workflow.
 
 ## Outputs
 
@@ -116,9 +108,8 @@ steps:
       fetch-depth: 0
 
   - uses: zeldrisho/pi-code-assist@0123456789abcdef0123456789abcdef01234567
-    env:
-      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
     with:
+      api-key: ${{ secrets.OPENCODE_API_KEY }}
       github-tools: write
       tools: all
       provider: opencode
