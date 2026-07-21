@@ -84,7 +84,7 @@ See the [DeepSeek V4 Flash Free model page](https://pi.dev/models/opencode/deeps
 | `response` | Pi's text response. Suitable for short downstream expressions. |
 | `response-path` | Absolute response file path. Prefer this for comments and other multiline or potentially large results. |
 
-GitHub limits output sizes. This action rejects responses above 900 KB; the streamed job log remains available.
+GitHub limits job outputs using an approximate UTF-16 measurement. The `response` output supports at most **400,000 UTF-8 bytes**, including multibyte text; larger responses fail with an instruction to use `response-path`. The response file and streamed job log remain available.
 
 ## Pi packages
 
@@ -96,7 +96,7 @@ with:
   tools: all
 ```
 
-Npm packages require exact semantic versions and git packages require full 40-character commit SHAs. Multiple packages may be provided one per line. Relative paths are resolved from `GITHUB_WORKSPACE`, must already exist in the checkout, and cannot escape through symlinks. Packages are loaded temporarily for this Pi invocation and can contain executable extensions; review them before use. Custom package tools must also be selected through `tools`, or use `tools: all`.
+Npm packages require exact semantic versions and git packages require full 40-character commit SHAs. Multiple packages may be provided one per line. Workspace package paths must begin with `./`; they are resolved from `GITHUB_WORKSPACE`, must already exist in the checkout, and cannot escape through symlinks. Packages are loaded temporarily for this Pi invocation and can contain executable extensions; review them before use. Custom package tools must also be selected through `tools`, or use `tools: all`.
 
 Trusted project `.pi/settings.json` files may also declare packages when `project-trust: true`. The explicit `packages` input works independently of project trust because supplying it is itself an opt-in to execute that package.
 
@@ -126,6 +126,8 @@ steps:
       prompt: Implement the requested change and create a pull request.
 ```
 
+GitHub read tools paginate within fixed limits of 5 pages and 500 records and bound each result to 50 KB / 2,000 lines. Tool result details report record counts, truncation, and continuation API paths; diffs and logs likewise report when their byte or line limit omitted content.
+
 GitHub tools automatically use the job-scoped token and act as `github-actions[bot]`; user PATs and GitHub App tokens are not accepted. The action does not grant permissions itself, so write tools work only when the workflow explicitly grants the corresponding permissions. Creating or updating a pull request also requires checkout credentials capable of pushing to the repository; pull requests from forks are not updated. Events created by `github-actions[bot]` generally do not trigger additional workflow runs. Keep `github-tools: none` or `read` for untrusted triggers, and restrict who can invoke workflows with write access.
 
 ## Allowing changes
@@ -139,6 +141,8 @@ with:
 ```
 
 This changes only files in the runner workspace. Without `github-tools: write`, pushing a branch or opening a pull request requires separate workflow steps. GitHub write tools can perform those operations only with explicit token permissions and checkout credentials capable of pushing.
+
+The pull-request creation and update tools require an explicit non-empty list of workspace-relative file paths. Only those files are staged and committed; traversal and symlink escapes are rejected, and unrelated workspace changes remain uncommitted. Updating a pull request also requires the checkout to be on that same-repository pull request's branch.
 
 ## Security
 

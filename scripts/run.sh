@@ -120,6 +120,10 @@ fi
 if [[ -n "$selected_tools" && "$selected_tools" != all ]]; then
   args+=(--tools "$selected_tools")
 fi
+# GitHub measures job outputs approximately as UTF-16 and caps them at 1 MB.
+# A 400,000-byte UTF-8 payload is at most 800,000 UTF-16 bytes, leaving room
+# for the output key, delimiter, newline, and other job outputs.
+response_output_max_bytes=400000
 response_file="$(mktemp "$RUNNER_TEMP/pi-agent-response-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-XXXXXX.txt")"
 export PI_SKIP_VERSION_CHECK=1
 export PI_TELEMETRY=0
@@ -139,8 +143,8 @@ status=${PIPESTATUS[0]}
 set -e
 
 printf 'response-path=%s\n' "$response_file" >> "$GITHUB_OUTPUT"
-if (( $(wc -c < "$response_file") > 900000 )); then
-  fail 'response exceeds the safe GitHub Actions output size; use response-path instead'
+if (( $(wc -c < "$response_file") > response_output_max_bytes )); then
+  fail "response exceeds the ${response_output_max_bytes}-byte GitHub Actions response limit; use response-path instead"
 fi
 
 delimiter="pi_agent_output_${RANDOM}_${RANDOM}"

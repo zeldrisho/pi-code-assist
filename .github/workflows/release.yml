@@ -14,30 +14,32 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Check shell syntax
-        run: bash -n scripts/run.sh tests/*.sh
+      - name: Run shared validation suite
+        run: ./scripts/validate.sh
 
-      - name: Lint shell
-        run: shellcheck scripts/run.sh tests/*.sh
+      - name: Create fake Pi executable
+        env:
+          FAKE_PI: ${{ runner.temp }}/fake-pi
+        run: |
+          printf '#!/usr/bin/env bash\nprintf "integration test passed\\n"\n' > "$FAKE_PI"
+          chmod +x "$FAKE_PI"
 
-      - name: Validate action and workflows
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
-
-      - name: Test runtime behavior
-        run: ./tests/run.sh
-
-      - name: Smoke-test isolated action files
-        run: ./tests/smoke-action.sh
-
-      - name: Check whitespace
-        run: git diff --check
+      - name: Test action metadata and composition
+        env:
+          PI_AGENT_TEST_BIN: ${{ runner.temp }}/fake-pi
+          PI_AGENT_TEST_ARGS: ${{ runner.temp }}/fake-pi-args
+        uses: ./
+        with:
+          prompt: Validate the release action.
 
   release:
     needs: validate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
