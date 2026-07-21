@@ -131,7 +131,18 @@ export default function githubTools(pi: ExtensionAPI) {
     timeout = 120_000,
   ): Promise<ExecResult> {
     return await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(command, args, { env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(command, args, { detached: true, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+      const terminate = () => {
+        if (child.pid !== undefined) {
+          try {
+            process.kill(-child.pid, "SIGTERM");
+            return;
+          } catch {
+            // The process may have exited between the check and signal.
+          }
+        }
+        child.kill();
+      };
       let output: Buffer = Buffer.alloc(0);
       let errorOutput: Buffer = Buffer.alloc(0);
       let totalBytes = 0;
@@ -154,7 +165,7 @@ export default function githubTools(pi: ExtensionAPI) {
         output = retain(output, value, keepTail, maxBytes);
         if (rejectOverflow && totalBytes > maxBytes && !overflowed) {
           overflowed = true;
-          child.kill();
+          terminate();
         }
       });
       child.stderr.on("data", (value: Buffer) => {
@@ -168,9 +179,9 @@ export default function githubTools(pi: ExtensionAPI) {
       child.on("error", finishWithError);
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill();
+        terminate();
       }, timeout);
-      const abort = () => child.kill();
+      const abort = terminate;
       signal?.addEventListener("abort", abort, { once: true });
       child.on("close", code => {
         clearTimeout(timer);

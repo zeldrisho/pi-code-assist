@@ -4,17 +4,22 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 version="$(awk '/default: [0-9]+\.[0-9]+\.[0-9]+/{ print $2; exit }' "$repository_root/action.yml")"
 [[ -n "$version" ]] || { printf 'Unable to read configured Pi version.\n' >&2; exit 1; }
-temporary_directory="$(mktemp -d)"
-cleanup() {
-  if [[ "${CI:-}" == "true" ]]; then
-    rm -rf -- "$temporary_directory"
-  elif command -v gomi >/dev/null 2>&1; then
-    gomi "$temporary_directory"
-  else
-    printf 'Installation test files left at %s (install gomi to enable cleanup).\n' "$temporary_directory" >&2
-  fi
-}
-trap cleanup EXIT
+if [[ -n "${PI_AGENT_TEST_SHARED_ROOT:-}" ]]; then
+  temporary_directory="$PI_AGENT_TEST_SHARED_ROOT"
+  mkdir -p "$temporary_directory"
+else
+  temporary_directory="$(mktemp -d)"
+  cleanup() {
+    if [[ "${CI:-}" == "true" ]]; then
+      rm -rf -- "$temporary_directory"
+    elif command -v gomi >/dev/null 2>&1; then
+      gomi "$temporary_directory"
+    else
+      printf 'Installation test files left at %s (install gomi to enable cleanup).\n' "$temporary_directory" >&2
+    fi
+  }
+  trap cleanup EXIT
+fi
 mkdir -p "$temporary_directory/workspace" "$temporary_directory/runner"
 
 output="$(env \
