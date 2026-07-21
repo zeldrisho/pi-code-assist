@@ -16,6 +16,7 @@
 | --- | --- |
 | User-facing action contract | `README.md` and `action.yml` |
 | Runtime behavior | `scripts/run.sh` |
+| Development guide | `docs/development.md` |
 | Security invariants | `docs/security.md` |
 | Release process | `docs/releases.md` |
 | Release configuration | `release-please-config.json` and `.github/workflows/release.yml` |
@@ -24,7 +25,8 @@
 
 - Before starting work, fetch and prune remote refs and reconcile local and remote state.
 - Rebase work branches onto `origin/main`; never merge `main` into them.
-- When asked to push, push the work branch and create a pull request.
+- Create a pull request only when explicitly asked to push or create one.
+- When explicitly asked to push, push the work branch and create a pull request.
 - Never rewrite commits that are merged, tagged, or released.
 
 ## Constraints

@@ -110,28 +110,10 @@ AI-agent workflows process untrusted repository and event content. In particular
 
 Project context files can still influence the model even when project trust is disabled. Project trust controls project-local settings and executable resources; it is not a prompt-injection defense.
 
-Maintainers should preserve the review checklist in [`docs/security.md`](docs/security.md) when changing the runtime or workflow.
-
-## Development
-
-```bash
-bash -n scripts/run.sh tests/*.sh
-shellcheck scripts/run.sh tests/*.sh
-actionlint
-./tests/run.sh
-./tests/smoke-action.sh
-```
-
-CI runs Actionlint 1.7.7. The action is intentionally a dependency-free composite action. Pi is installed under `RUNNER_TEMP`, with install scripts, audit, telemetry, and startup update checks disabled.
-
-Use Conventional Commit messages so Release Please can determine semantic versions. See [`docs/releases.md`](docs/releases.md) for the owner-controlled release process. Consumers should still reference releases by their reviewed full commit SHA.
-
 ## References
 
 - [Pi CLI usage](https://pi.dev/docs/latest/usage)
 - [Pi security and project trust](https://pi.dev/docs/latest/security)
-- [GitHub action metadata](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax)
-- [GitHub Marketplace actions](https://github.com/marketplace?type=actions)
 
 ## License
 

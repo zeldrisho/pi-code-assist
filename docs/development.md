@@ -1,0 +1,57 @@
+# Development guide
+
+Use this guide when changing the action, runtime, tests, or workflows.
+
+## Requirements
+
+Local validation requires Bash, ShellCheck, and Actionlint. Use GitHub CLI for repository operations and `gomi` for recoverable local file removal.
+
+The action itself remains a dependency-free composite action. Its runtime installs the exact configured Pi version under `RUNNER_TEMP`.
+
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `action.yml` | User-facing action metadata and composition |
+| `scripts/run.sh` | Input validation, Pi installation, execution, and outputs |
+| `tests/run.sh` | Runtime behavior and failure-path tests |
+| `tests/smoke-action.sh` | Isolated action-file smoke test |
+| `.github/workflows/ci.yml` | Required `check` job |
+| `.github/workflows/release.yml` | Release Please validation and release orchestration |
+| `release-please-config.json` | Root release strategy and initial version |
+| `docs/security.md` | Security invariants for runtime and workflow changes |
+| `docs/releases.md` | Owner-controlled release procedure |
+
+## Validation
+
+Run the complete suite before pushing:
+
+```bash
+bash -n scripts/run.sh tests/*.sh
+shellcheck scripts/run.sh tests/*.sh
+actionlint
+./tests/run.sh
+./tests/smoke-action.sh
+git diff --check
+```
+
+Runtime changes require boundary and failure-path coverage. Workflow changes must preserve read-only default permissions and pin every external action to a reviewed full commit SHA.
+
+## Development workflow
+
+Start from an up-to-date `main` and use a focused branch:
+
+```bash
+git fetch --prune
+git switch main
+git pull --ff-only
+git switch -c <type>/<short-description>
+```
+
+Use lowercase Conventional Commit descriptions. Before pushing, run the complete validation suite, fetch, and rebase onto `origin/main`; never merge `main` into a work branch.
+
+Create a pull request only when explicitly requested to push or create one. Repository owners review and merge pull requests.
+
+## Security-sensitive changes
+
+Treat action inputs, repository files, model responses, and project-local Pi resources as untrusted. Read [`security.md`](security.md) before modifying `action.yml`, `scripts/run.sh`, permissions, installation behavior, or output handling.
