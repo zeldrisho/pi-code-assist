@@ -2,7 +2,7 @@
 set -euo pipefail
 
 fail() {
-  printf 'Pi Agent: %s\n' "$*" >&2
+  printf 'Pi Code Assist: %s\n' "$*" >&2
   exit 1
 }
 

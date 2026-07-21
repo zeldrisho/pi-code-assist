@@ -20,8 +20,8 @@ Keep the action narrowly scoped around one non-interactive Pi invocation. Prefer
 | `tests/run.sh` | Runtime behavior and failure-path tests |
 | `tests/smoke-action.sh` | Isolated action-file smoke test |
 | `.github/workflows/ci.yml` | Required `check` job |
-| `.github/workflows/release.yml` | Release Please validation and release orchestration |
-| `release-please-config.json` | Root release strategy and initial version |
+| `.github/workflows/release.yml` | Release Please strategy, validation, and release orchestration |
+| `version.txt` | Release Please-managed current version |
 | `docs/security.md` | Security invariants for runtime and workflow changes |
 | `docs/releases.md` | Owner-controlled release procedure |
 
