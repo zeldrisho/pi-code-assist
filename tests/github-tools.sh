@@ -4,7 +4,9 @@ set -euo pipefail
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 temporary_directory="$(mktemp -d)"
 cleanup() {
-  if command -v gomi >/dev/null 2>&1; then
+  if [[ "${CI:-}" == "true" ]]; then
+    rm -rf -- "$temporary_directory"
+  elif command -v gomi >/dev/null 2>&1; then
     gomi "$temporary_directory"
   else
     printf 'Extension test files left at %s (install gomi to enable cleanup).\n' "$temporary_directory" >&2

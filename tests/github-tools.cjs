@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdtempSync, writeFileSync, chmodSync, readFileSync, existsSync, mkdirSync, symlinkSync } = require("node:fs");
+const { mkdtempSync, writeFileSync, chmodSync, readFileSync, existsSync, mkdirSync, rmSync, symlinkSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { spawn, execFileSync, spawnSync } = require("node:child_process");
@@ -159,6 +159,7 @@ async function call(tools, name, params, ctx = { cwd: workspace }) {
 
   console.log("GitHub extension tests passed.");
 })().finally(() => {
-  if (spawnSync("sh", ["-c", "command -v gomi"], { stdio: "ignore" }).status === 0) execFileSync("gomi", [root]);
+  if (process.env.CI === "true") rmSync(root, { recursive: true, force: true });
+  else if (spawnSync("sh", ["-c", "command -v gomi"], { stdio: "ignore" }).status === 0) execFileSync("gomi", [root]);
   else console.error(`Extension harness files left at ${root} (install gomi to enable cleanup).`);
 });
