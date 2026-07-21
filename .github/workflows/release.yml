@@ -18,19 +18,21 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Run shared validation suite
-        run: ./scripts/validate.sh
+      - name: Set up Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
+        with:
+          node-version: '24.18.0'
+          cache: true
 
-      - name: Create fake Pi executable
-        env:
-          FAKE_PI: ${{ runner.temp }}/fake-pi
-        run: |
-          printf '#!/usr/bin/env bash\nprintf "integration test passed\\n"\n' > "$FAKE_PI"
-          chmod +x "$FAKE_PI"
+      - run: vp install --frozen-lockfile --ignore-scripts
+      - run: vp check
+      - run: vp test
+      - run: vp build
 
       - name: Test action metadata and composition
         env:
-          PI_AGENT_TEST_BIN: ${{ runner.temp }}/fake-pi
+          PI_AGENT_TEST_BIN: ${{ github.workspace }}/node_modules/.bin/tsx
+          PI_AGENT_TEST_SCRIPT: ${{ github.workspace }}/tests/fake-pi.ts
           PI_AGENT_TEST_ARGS: ${{ runner.temp }}/fake-pi-args
         uses: ./
         with:
@@ -38,6 +40,7 @@ jobs:
           api-key: integration-test-key
           provider: opencode
           model: deepseek-v4-flash-free
+          pi-version: 0.80.10
 
   release:
     needs: validate

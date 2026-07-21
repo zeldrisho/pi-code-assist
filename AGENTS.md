@@ -1,28 +1,32 @@
 # Agent Instructions
 
+## Toolchain
+
+- Use Vite+ for runtime, package management, checks, tests, tasks, and builds.
+- Write runtime and test code in TypeScript; do not add Node/npm commands or `.sh`, `.js`, or `.cjs` files.
+
 ## Commands
 
-| Task | Command |
-| --- | --- |
-| Complete validation | `./scripts/validate.sh` |
-| Check shell syntax | `bash -n scripts/*.sh tests/*.sh` |
-| Lint shell | `shellcheck scripts/*.sh tests/*.sh` |
-| Validate workflows | `actionlint` |
-| Run behavior tests | `./tests/run.sh` |
-| Test GitHub extension | `./tests/github-tools.sh` |
-| Check action contract | `./tests/contract.sh` |
-| Smoke-test isolated action files | `./tests/smoke-action.sh` |
+| Task                         | Command                           |
+| ---------------------------- | --------------------------------- |
+| Install dependencies         | `vp install`                      |
+| Format, lint, and type-check | `vp check`                        |
+| Run tests                    | `vp test`                         |
+| Run one test file            | `vp test tests/<name>.test.ts`    |
+| Build                        | `vp build`                        |
+| Complete validation          | `vp check && vp test && vp build` |
 
 ## Sources of Truth
 
-| Need | Source |
-| --- | --- |
-| User-facing action contract | `README.md` and `action.yml` |
-| Runtime behavior | `scripts/run.sh` |
-| Development guide | `docs/development.md` |
-| Security invariants | `docs/security.md` |
-| Release process | `docs/releases.md` |
-| Release configuration | `.github/workflows/release.yml` |
+| Need                        | Source                              |
+| --------------------------- | ----------------------------------- |
+| User-facing action contract | `README.md` and `action.yml`        |
+| Runtime behavior            | `scripts/run.ts`                    |
+| Toolchain configuration     | `vite.config.ts` and `package.json` |
+| Development guide           | `docs/development.md`               |
+| Security invariants         | `docs/security.md`                  |
+| Release process             | `docs/releases.md`                  |
+| Release configuration       | `.github/workflows/release.yml`     |
 
 ## Git Workflow
 
@@ -34,8 +38,8 @@
 
 ## Constraints
 
-- Keep the action dependency-free and compatible with GitHub-hosted Ubuntu runners.
-- Pass action inputs as data; never evaluate or interpolate the prompt as shell code.
+- Keep action dependencies exact-pinned and compatible with GitHub-hosted Ubuntu runners.
+- Pass action inputs as data; never evaluate or interpolate the prompt as executable code.
 - Preserve the read-only and untrusted-project defaults.
 - Keep external `uses:` references pinned to full 40-character commit SHAs.
 - Add boundary and failure-path tests for runtime changes.
