@@ -30,8 +30,12 @@
 
 ## Git Workflow
 
-- Before starting work, fetch and prune remote refs and reconcile local and remote state.
-- Rebase work branches onto `origin/main`; never merge `main` into them.
+- Before starting work, run `git fetch --prune origin` and reconcile local and remote state.
+- Keep local `main` aligned with `origin/main`; create a work branch before making commits.
+- Keep only one local work branch in addition to `main`; reuse it or ask before replacing it.
+- Rebase the active work branch onto `origin/main`; never merge `main` into it.
+- Treat `git branch --no-merged` as unreliable after squash or rebase merges; verify patch equivalence with `git cherry origin/main <branch>`.
+- Delete a local branch with a gone upstream only after all its patches are present on `origin/main`; preserve and rebase branches with unique commits.
 - Create a pull request only when explicitly asked to push or create one.
 - When explicitly asked to push, push the work branch and create a pull request.
 - Never rewrite commits that are merged, tagged, or released.
