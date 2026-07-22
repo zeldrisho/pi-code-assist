@@ -1,10 +1,5 @@
 # Agent Instructions
 
-## Toolchain
-
-- Use Vite+ for runtime, package management, checks, tests, tasks, and builds.
-- Write runtime and test code in TypeScript; do not add Node/npm commands or `.sh`, `.js`, or `.cjs` files.
-
 ## Commands
 
 | Task                         | Command                           |
@@ -32,12 +27,10 @@
 
 - Before starting work, run `git fetch --prune origin` and reconcile local and remote state.
 - Keep local `main` aligned with `origin/main`; create a work branch before making commits.
-- Keep only one local work branch in addition to `main`; reuse it or ask before replacing it.
+- Keep at most one local work branch besides `main`; if one exists, ask before creating, replacing, or deleting it.
 - Rebase the active work branch onto `origin/main`; never merge `main` into it.
-- Treat `git branch --no-merged` as unreliable after squash or rebase merges; verify patch equivalence with `git cherry origin/main <branch>`.
-- Delete a local branch with a gone upstream only after all its patches are present on `origin/main`; preserve and rebase branches with unique commits.
-- Create a pull request only when explicitly asked to push or create one.
-- When explicitly asked to push, push the work branch and create a pull request.
+- Before deleting a branch with a gone upstream, use `git cherry origin/main <branch>` to account for squash or rebase merges; preserve and rebase branches with unique patches.
+- Only when explicitly asked to push or create a pull request, push the work branch and create the pull request; never merge it.
 - Never rewrite commits that are merged, tagged, or released.
 
 ## Constraints
@@ -47,7 +40,6 @@
 - Preserve the read-only and untrusted-project defaults.
 - Keep external `uses:` references pinned to full 40-character commit SHAs.
 - Add boundary and failure-path tests for runtime changes.
-- Agents may prepare branches and pull requests, but must not merge them.
 - Do not hand-edit Release Please branches or generated release artifacts to bypass checks.
 - Do not create tags or GitHub releases outside Release Please.
 - Release Please pull requests require owner approval for the exact version before merge.
