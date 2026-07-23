@@ -4,13 +4,13 @@ Use this checklist when reviewing changes to `action.yml`, `scripts/run.ts`, bun
 
 - Treat every action input, repository file, context file, and model response as untrusted data.
 - Pass `prompt` through standard input as data; never evaluate it or construct a shell command from it.
-- Require an exact Pi version and install through Vite+ with lifecycle scripts, telemetry, and update checks disabled.
+- Require an exact Pi version, install it into a fresh root through Vite+ with lifecycle scripts disabled, and verify it with `pi --version` before every invocation. Keep telemetry and update checks disabled.
 - Resolve `working-directory` canonically and require it to remain inside `GITHUB_WORKSPACE`, including through symlinks.
 - Default to the read-only tool allowlist, no GitHub tools, and `--no-approve`; broaden any of them only through explicit inputs.
 - Remember that project trust controls project-local Pi configuration and executable resources, not context files or tool sandboxing.
 - Do not use prompt sanitization as a substitute for trust boundaries, minimal tools, and least-privilege workflow permissions.
 - Treat Pi packages as executable code. Require immutable npm/git identities, constrain local package paths to the workspace, and load packages only when explicitly configured or through a trusted project.
-- Mask supplied API keys and GitHub tokens before invoking Pi and never copy them into action outputs.
+- Mask supplied API keys and GitHub tokens before filesystem or process operations. Keep the API key only in Pi's required argument array, pass the GitHub token only as `GH_TOKEN` when GitHub tools are enabled, and never copy secrets into action outputs.
 - Preserve Pi's exit status while streaming its response; a partial response must not turn a failed run into success.
 - Bound expression-safe output. Keep the response file available when the `response` output is too large.
 - Do not grant token permissions, post comments, push commits, or execute model output implicitly. GitHub write tools must require explicit action inputs and workflow permissions.

@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { test } from 'vite-plus/test';
-import githubToolsExtension from '../extensions/github-tools.ts';
+import githubToolsExtension from '../extensions/github/index.ts';
 const root = mkdtempSync(join(tmpdir(), 'pi-agent-extension-test-'));
 const bin = join(root, 'bin');
 const workspace = join(root, 'workspace');
