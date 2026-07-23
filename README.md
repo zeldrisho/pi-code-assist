@@ -64,9 +64,16 @@ The example uses known-good immutable pins rather than automatically tracking th
 | `packages`          | No       | —                   | Exact-pinned npm/git Pi packages or package paths from the checked-out workspace, one per line.                                                                                 |
 | `github-tools`      | No       | `none`              | `none` disables GitHub-aware tools and does not pass the job token to Pi. `read` or `write` adds GitHub-aware tools using the job's `github-actions[bot]` identity.             |
 | `pi-version`        | Yes      | —                   | Exact Pi package version. Floating tags and ranges are rejected.                                                                                                                |
+| `setup-vp`          | No       | `true`              | Installs the action's pinned Vite+ and Node versions. Set to `false` only when earlier workflow steps guarantee compatible versions.                                            |
+| `install-timeout`   | No       | `300`               | Maximum seconds (1–86400) allowed for Pi installation before its process tree is terminated.                                                                                    |
+| `execution-timeout` | No       | `600`               | Maximum seconds (1–86400) allowed for the Pi/model invocation before its process tree is terminated.                                                                            |
 | `working-directory` | No       | `.`                 | Existing directory below `GITHUB_WORKSPACE`.                                                                                                                                    |
 
 Pass the required `api-key` input from a GitHub Actions secret. Pi inherits provider-specific environment variables, but they do not replace this required action input.
+
+By default, the action provisions its pinned Vite+ and Node versions so it remains standalone. Workflows that already use `voidzero-dev/setup-vp` with compatible pinned versions may set `setup-vp: false` to avoid duplicate setup. The action still uses `vp` to install its runtime and Pi, so callers that opt out must ensure `vp` is available.
+
+Pi installation and model execution have separate timeouts and log their phase transitions. Increase `install-timeout` or `execution-timeout` for unusually slow runners or models; both values must be positive integer seconds.
 
 Browse [Pi models](https://pi.dev/models) to choose a provider and model for your workflow.
 
@@ -76,6 +83,8 @@ Browse [Pi models](https://pi.dev/models) to choose a provider and model for you
 | --------------- | ------------------------------------------------------------------------------------------------------- |
 | `response`      | Pi's text response. Suitable for short downstream expressions.                                          |
 | `response-path` | Absolute response file path. Prefer this for comments and other multiline or potentially large results. |
+
+A successful Pi invocation must return non-whitespace text. Empty or whitespace-only responses fail the action before either output is published, preventing downstream steps from posting blank results.
 
 GitHub limits job outputs using an approximate UTF-16 measurement. The `response` output supports at most **400,000 UTF-8 bytes**, including multibyte text; larger responses fail with an instruction to use `response-path`. The response file and streamed job log remain available.
 

@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test';
+import { afterAll, beforeAll, describe, expect, test, vi } from 'vite-plus/test';
 import { type Execution, runAction } from '../scripts/run.ts';
 
 let root: string;
@@ -111,6 +111,8 @@ describe('action runtime', () => {
     ['PI_AGENT_INPUT_VERSION', '', 'pi-version is required'],
     ['PI_AGENT_INPUT_VERSION', 'latest', 'exact semantic version'],
     ['PI_AGENT_INPUT_GITHUB_TOOLS', 'admin', 'github-tools must be none, read, or write'],
+    ['PI_AGENT_INPUT_INSTALL_TIMEOUT', '0', 'positive integer number of seconds'],
+    ['PI_AGENT_INPUT_EXECUTION_TIMEOUT', '1.5', 'positive integer number of seconds'],
   ])('rejects invalid %s', async (key, value, message) => {
     await expect(invoke({ [key]: value })).rejects.toThrow(message);
   });
@@ -164,6 +166,40 @@ describe('action runtime', () => {
   ])('rejects unsafe package source %s', async (source) => {
     await expect(invoke({ PI_AGENT_INPUT_PACKAGES: source })).rejects.toThrow(/package/);
   });
+
+  test('passes bounded execution timeouts to the invocation', async () => {
+    let result = await invoke();
+    expect(result.execution.timeoutMs).toBe(600_000);
+    result = await invoke({ PI_AGENT_INPUT_EXECUTION_TIMEOUT: '42' });
+    expect(result.execution.timeoutMs).toBe(42_000);
+  });
+
+  test('logs installation completion before model invocation starts', async () => {
+    const logs: string[] = [];
+    const log = vi
+      .spyOn(console, 'log')
+      .mockImplementation((message) => logs.push(String(message)));
+    try {
+      await invoke();
+    } finally {
+      log.mockRestore();
+    }
+    expect(logs).toContain('Pi 0.80.10 installation completed.');
+    expect(logs).toContain('Starting Pi/model invocation (opencode/test-model)...');
+    expect(logs.indexOf('Pi 0.80.10 installation completed.')).toBeLessThan(
+      logs.indexOf('Starting Pi/model invocation (opencode/test-model)...'),
+    );
+  });
+
+  test.each(['', ' \n\t  '])(
+    'rejects an empty model response without publishing outputs',
+    async (response) => {
+      await expect(invoke({}, response)).rejects.toThrow(
+        'Pi/model invocation completed without a non-empty response',
+      );
+      expect(await readFile(output, 'utf8')).toBe('');
+    },
+  );
 
   test('preserves failures after publishing the partial response path', async () => {
     await expect(invoke({}, 'partial response\n', 23)).rejects.toThrow('Pi exited with status 23');

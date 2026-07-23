@@ -3,11 +3,13 @@ import { constants, createWriteStream } from 'node:fs';
 import { setSecret } from '@actions/core';
 import { access, appendFile, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const RESPONSE_OUTPUT_MAX_BYTES = 400_000;
+const PROCESS_TERMINATION_GRACE_MS = 2_000;
 const SEMVER = /^\d+\.\d+\.\d+(?:[+-][0-9A-Za-z.-]+)?$/;
+const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const NPM_PACKAGE =
   /^npm:(?:(?:@[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)|(?:[A-Za-z0-9_.-]+))@\d+\.\d+\.\d+(?:[+-][0-9A-Za-z.-]+)?$/;
 const GIT_PACKAGE = /^git:\S+@[0-9a-fA-F]{40}$/;
@@ -20,11 +22,12 @@ export interface Execution {
   cwd: string;
   prompt: string;
   responseFile: string;
+  timeoutMs: number;
 }
 
 export interface RuntimeHooks {
   execute?: (execution: Execution) => Promise<number>;
-  install?: (installRoot: string, version: string) => Promise<string>;
+  install?: (installRoot: string, version: string, timeoutMs: number) => Promise<string>;
 }
 
 function fail(message: string): never {
@@ -35,6 +38,25 @@ function required(env: NodeJS.ProcessEnv, name: string, message: string): string
   const value = env[name];
   if (!value) fail(message);
   return value;
+}
+
+function timeoutMilliseconds(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  label: string,
+  fallback: string,
+): number {
+  const value = env[name] || fallback;
+  if (!POSITIVE_INTEGER.test(value)) fail(`${label} must be a positive integer number of seconds`);
+  const seconds = Number(value);
+  if (!Number.isSafeInteger(seconds) || seconds > 86_400)
+    fail(`${label} must be no greater than 86400 seconds`);
+  return seconds * 1_000;
+}
+
+function secondsLabel(timeoutMs: number): string {
+  const seconds = timeoutMs / 1_000;
+  return `${seconds} second${seconds === 1 ? '' : 's'}`;
 }
 
 function inside(root: string, candidate: string): boolean {
@@ -54,27 +76,67 @@ async function resolveInside(root: string, requested: string, label: string): Pr
   return candidate;
 }
 
+function terminateProcessTree(child: ChildProcess): NodeJS.Timeout {
+  const pid = child.pid;
+  if (pid) {
+    try {
+      if (process.platform === 'win32') child.kill('SIGTERM');
+      else process.kill(-pid, 'SIGTERM');
+    } catch {
+      // The process may have exited between the timeout and the signal.
+    }
+  }
+  return setTimeout(() => {
+    if (!pid) return;
+    try {
+      if (process.platform === 'win32') child.kill('SIGKILL');
+      else process.kill(-pid, 'SIGKILL');
+    } catch {
+      // The process tree has already exited.
+    }
+  }, PROCESS_TERMINATION_GRACE_MS);
+}
+
 async function runProcess(
   command: string,
   args: string[],
-  options: { cwd: string; input?: string },
+  options: { cwd: string; input?: string; timeoutMs: number; phase: string },
 ): Promise<number> {
   return await new Promise((resolveStatus, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
+      detached: process.platform !== 'win32',
       env: process.env,
       stdio: ['pipe', 'inherit', 'inherit'],
     });
-    child.once('error', reject);
+    let timeoutError: Error | undefined;
+    let escalation: NodeJS.Timeout | undefined;
+    const timeout = setTimeout(() => {
+      timeoutError = new Error(
+        `${options.phase} timed out after ${secondsLabel(options.timeoutMs)}`,
+      );
+      escalation = terminateProcessTree(child);
+    }, options.timeoutMs);
+    timeout.unref();
+    const clearTimers = () => {
+      clearTimeout(timeout);
+      if (escalation && !timeoutError) clearTimeout(escalation);
+    };
+    child.once('error', (error) => {
+      clearTimers();
+      reject(timeoutError || error);
+    });
     child.once('close', (code, signal) => {
-      if (signal) reject(new Error(`${command} was terminated by ${signal}`));
+      clearTimers();
+      if (timeoutError) reject(timeoutError);
+      else if (signal) reject(new Error(`${command} was terminated by ${signal}`));
       else resolveStatus(code ?? 1);
     });
     child.stdin.end(options.input);
   });
 }
 
-async function installPi(installRoot: string, version: string): Promise<string> {
+async function installPi(installRoot: string, version: string, timeoutMs: number): Promise<string> {
   const executable = join(
     installRoot,
     'node_modules',
@@ -101,7 +163,7 @@ async function installPi(installRoot: string, version: string): Promise<string> 
     const status = await runProcess(
       'vp',
       ['install', '--ignore-scripts', '--no-lockfile', '--silent'],
-      { cwd: installRoot },
+      { cwd: installRoot, timeoutMs, phase: 'Pi installation' },
     );
     if (status !== 0) fail(`Pi installation failed with status ${status}`);
     await access(executable, constants.X_OK).catch(() =>
@@ -111,23 +173,47 @@ async function installPi(installRoot: string, version: string): Promise<string> 
   }
 }
 
-async function executePi({ command, args, cwd, prompt, responseFile }: Execution): Promise<number> {
+async function executePi({
+  command,
+  args,
+  cwd,
+  prompt,
+  responseFile,
+  timeoutMs,
+}: Execution): Promise<number> {
   return await new Promise((resolveStatus, reject) => {
     const output = createWriteStream(responseFile, { flags: 'wx', mode: 0o600 });
     const child = spawn(command, args, {
       cwd,
+      detached: process.platform !== 'win32',
       env: process.env,
       stdio: ['pipe', 'pipe', 'inherit'],
     });
-    let exitStatus: number | undefined;
+    let exitResult: Error | number | undefined;
     let outputFinished = false;
+    let escalation: NodeJS.Timeout | undefined;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      exitResult = new Error(`Pi/model invocation timed out after ${secondsLabel(timeoutMs)}`);
+      escalation = terminateProcessTree(child);
+    }, timeoutMs);
+    timeout.unref();
     const complete = () => {
-      if (exitStatus !== undefined && outputFinished) resolveStatus(exitStatus);
+      if (exitResult === undefined || !outputFinished) return;
+      clearTimeout(timeout);
+      if (escalation && !timedOut) clearTimeout(escalation);
+      if (exitResult instanceof Error) reject(exitResult);
+      else resolveStatus(exitResult);
     };
-    child.once('error', reject);
-    child.stdin.once('error', reject);
-    child.stdout.once('error', reject);
-    output.once('error', reject);
+    const recordError = (error: Error) => {
+      if (exitResult === undefined) exitResult = error;
+      complete();
+    };
+    child.once('error', recordError);
+    child.stdin.once('error', recordError);
+    child.stdout.once('error', recordError);
+    output.once('error', recordError);
     output.once('finish', () => {
       outputFinished = true;
       complete();
@@ -135,9 +221,12 @@ async function executePi({ command, args, cwd, prompt, responseFile }: Execution
     child.stdout.pipe(output);
     child.stdout.pipe(process.stdout, { end: false });
     child.once('close', (code, signal) => {
-      if (signal) reject(new Error(`Pi was terminated by ${signal}`));
-      else {
-        exitStatus = code ?? 1;
+      if (exitResult instanceof Error) complete();
+      else if (signal) {
+        exitResult = new Error(`Pi was terminated by ${signal}`);
+        complete();
+      } else {
+        exitResult = code ?? 1;
         complete();
       }
     });
@@ -159,6 +248,18 @@ export async function runAction(
 
   const version = required(env, 'PI_AGENT_INPUT_VERSION', 'pi-version is required');
   if (!SEMVER.test(version)) fail('pi-version must be an exact semantic version');
+  const installTimeoutMs = timeoutMilliseconds(
+    env,
+    'PI_AGENT_INPUT_INSTALL_TIMEOUT',
+    'install-timeout',
+    '300',
+  );
+  const executionTimeoutMs = timeoutMilliseconds(
+    env,
+    'PI_AGENT_INPUT_EXECUTION_TIMEOUT',
+    'execution-timeout',
+    '600',
+  );
 
   const thinking = env.PI_AGENT_INPUT_THINKING || '';
   if (!THINKING_LEVELS.has(thinking)) fail(`unsupported thinking level: ${thinking}`);
@@ -208,7 +309,9 @@ export async function runAction(
 
   const installRoot = join(runnerTemp, `pi-agent-${version}`);
   const piExecutable =
-    env.PI_AGENT_TEST_BIN || (await (hooks.install || installPi)(installRoot, version));
+    env.PI_AGENT_TEST_BIN ||
+    (await (hooks.install || installPi)(installRoot, version, installTimeoutMs));
+  console.log(`Pi ${version} installation completed.`);
   const commandPrefix = env.PI_AGENT_TEST_SCRIPT ? [env.PI_AGENT_TEST_SCRIPT] : [];
   const args = ['--print', '--no-session'];
   if (thinking) args.push('--thinking', thinking);
@@ -249,6 +352,7 @@ export async function runAction(
       cwd: workingDirectory,
       prompt: '',
       responseFile: probeFile,
+      timeoutMs: executionTimeoutMs,
     });
     if (status !== 0) fail('Pi version probe failed');
     const installedVersion = (await readFile(probeFile, 'utf8')).trim();
@@ -262,15 +366,21 @@ export async function runAction(
     runnerTemp,
     `pi-agent-response-${env.GITHUB_RUN_ID || 'local'}-${env.GITHUB_RUN_ATTEMPT || '1'}-${randomUUID()}.txt`,
   );
+  console.log(`Starting Pi/model invocation (${provider}/${model})...`);
   const status = await (hooks.execute || executePi)({
     command: piExecutable,
     args: [...commandPrefix, ...args],
     cwd: workingDirectory,
     prompt,
     responseFile,
+    timeoutMs: executionTimeoutMs,
   });
-  await appendFile(githubOutput, `response-path=${responseFile}\n`);
   const response = await readFile(responseFile);
+  if (response.toString().trim().length === 0) {
+    if (status !== 0) fail(`Pi exited with status ${status} without producing a response`);
+    fail('Pi/model invocation completed without a non-empty response');
+  }
+  await appendFile(githubOutput, `response-path=${responseFile}\n`);
   if (response.byteLength > RESPONSE_OUTPUT_MAX_BYTES) {
     fail(
       `response exceeds the ${RESPONSE_OUTPUT_MAX_BYTES}-byte GitHub Actions response limit; use response-path instead`,

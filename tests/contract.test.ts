@@ -105,7 +105,10 @@ describe('public action contract', () => {
     expect(runtime).toContain("required(env, 'PI_AGENT_INPUT_VERSION', 'pi-version is required')");
   });
 
-  test('keeps setup-vp automatic installation disabled', () => {
+  test('keeps setup-vp standalone by default without automatic workspace installation', () => {
+    const setupInput = yamlSection(action, 'inputs').get('setup-vp')!;
+    expect(setupInput.default).toBe('true');
+    expect(action).toContain("if: inputs.setup-vp == 'true'");
     for (const document of [action, ci, release]) {
       expect(document.match(/uses: voidzero-dev\/setup-vp@/g)).toHaveLength(1);
       expect(document.match(/run-install: false/g)).toHaveLength(1);
