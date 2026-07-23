@@ -38,6 +38,18 @@ inputs:
   pi-version:
     description: Exact @earendil-works/pi-coding-agent version to install
     required: true
+  setup-vp:
+    description: Whether to install the action's pinned Vite+ and Node versions
+    required: false
+    default: 'true'
+  install-timeout:
+    description: Maximum seconds allowed for Pi installation (1-86400)
+    required: false
+    default: '300'
+  execution-timeout:
+    description: Maximum seconds allowed for the Pi/model invocation (1-86400)
+    required: false
+    default: '600'
   working-directory:
     description: Directory under GITHUB_WORKSPACE in which Pi runs
     required: false
@@ -55,6 +67,7 @@ runs:
   using: composite
   steps:
     - name: Set up Vite+
+      if: inputs.setup-vp == 'true'
       uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
       with:
         node-version: '24.18.0'
@@ -82,5 +95,7 @@ runs:
         PI_AGENT_GITHUB_TOKEN: ${{ inputs.github-tools != 'none' && github.token || '' }}
         PI_AGENT_INPUT_GITHUB_TOOLS: ${{ inputs.github-tools }}
         PI_AGENT_INPUT_VERSION: ${{ inputs.pi-version }}
+        PI_AGENT_INPUT_INSTALL_TIMEOUT: ${{ inputs.install-timeout }}
+        PI_AGENT_INPUT_EXECUTION_TIMEOUT: ${{ inputs.execution-timeout }}
         PI_AGENT_INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
       run: vp exec tsx scripts/run.ts
