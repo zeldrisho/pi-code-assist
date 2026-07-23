@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/zeldrisho/pi-code-assist/compare/v2.0.0...v2.0.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* harden Pi setup and execution phases ([92d7c14](https://github.com/zeldrisho/pi-code-assist/commit/92d7c144100907a3701c2acf32573eaf6eba5467))
+
 ## [2.0.0](https://github.com/zeldrisho/pi-code-assist/compare/v1.0.0...v2.0.0) (2026-07-21)
 
 
