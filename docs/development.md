@@ -6,24 +6,25 @@ Use this guide when changing the action, runtime, tests, or workflows.
 
 Local development requires Vite+. Run `vp install` to provision the repository toolchain and dependencies. Use GitHub CLI for repository operations and `gomi` for recoverable local file removal.
 
-The composite action uses the pinned Vite+ setup action and installs its exact-locked TypeScript runtime dependencies. The runtime installs the exact configured Pi version under `RUNNER_TEMP` through Vite+ with lifecycle scripts disabled.
+The composite action uses the pinned Vite+ setup action and installs its exact-locked TypeScript runtime dependencies. For every invocation, the runtime creates a fresh installation under `RUNNER_TEMP`, installs the exact configured Pi version through Vite+ with lifecycle scripts disabled, and verifies it with `pi --version`.
 
 Keep the action narrowly scoped around one non-interactive Pi invocation. Prefer the Pi CLI process boundary, keep event-specific orchestration in workflows or opt-in extensions, and add only narrowly validated typed inputs for concrete user needs. Do not expose a generic shell-like Pi argument input.
 
 ## Repository layout
 
-| Path                            | Purpose                                                        |
-| ------------------------------- | -------------------------------------------------------------- |
-| `action.yml`                    | User-facing action metadata and composition                    |
-| `scripts/run.ts`                | Input validation, Pi installation, execution, and outputs      |
-| `extensions/github-tools.ts`    | Optional read/write GitHub tools loaded into Pi                |
-| `tests/*.test.ts`               | Runtime, contract, extension, boundary, and failure-path tests |
-| `vite.config.ts`                | Vite+ checks, tests, tasks, and build configuration            |
-| `.github/workflows/ci.yml`      | Required `check` job                                           |
-| `.github/workflows/release.yml` | Release Please strategy, validation, and release orchestration |
-| `version.txt`                   | Release Please-managed current version                         |
-| `docs/security.md`              | Security invariants for runtime and workflow changes           |
-| `docs/releases.md`              | Owner-controlled release procedure                             |
+| Path                                                          | Purpose                                                        |
+| ------------------------------------------------------------- | -------------------------------------------------------------- |
+| `action.yml`                                                  | User-facing action metadata and composition                    |
+| `scripts/run.ts`                                              | Action lifecycle orchestration                                 |
+| `scripts/{inputs,installation,process,invocation,outputs}.ts` | Runtime policy modules                                         |
+| `extensions/github/`                                          | Bundled optional read/write GitHub extension                   |
+| `tests/*.test.ts`                                             | Runtime, contract, extension, boundary, and failure-path tests |
+| `vite.config.ts`                                              | Vite+ checks, tests, tasks, and build configuration            |
+| `.github/workflows/ci.yml`                                    | Required `check` job                                           |
+| `.github/workflows/release.yml`                               | Release Please strategy, validation, and release orchestration |
+| `version.txt`                                                 | Release Please-managed current version                         |
+| `docs/security.md`                                            | Security invariants for runtime and workflow changes           |
+| `docs/releases.md`                                            | Owner-controlled release procedure                             |
 
 ## Validation
 

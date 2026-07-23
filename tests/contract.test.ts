@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, test } from 'vite-plus/test';
+import { GITHUB_READ_TOOLS, GITHUB_WRITE_TOOLS } from '../extensions/github/manifest.ts';
 
 interface Metadata {
   default: string;
@@ -54,8 +55,7 @@ const action = await readFile('action.yml', 'utf8');
 const ci = await readFile('.github/workflows/ci.yml', 'utf8');
 const release = await readFile('.github/workflows/release.yml', 'utf8');
 const readme = await readFile('README.md', 'utf8');
-const runtime = await readFile('scripts/run.ts', 'utf8');
-const extension = await readFile('extensions/github-tools.ts', 'utf8');
+const runtime = await readFile('scripts/inputs.ts', 'utf8');
 
 describe('public action contract', () => {
   test('keeps action and README inputs and outputs synchronized', () => {
@@ -115,19 +115,20 @@ describe('public action contract', () => {
     }
   });
 
-  test('selects exactly the tools registered by each GitHub mode', () => {
-    const registered = [...extension.matchAll(/pi\.registerTool\(\{\s*name:\s*'([^']+)'/g)].map(
-      (match) => match[1],
-    );
-    const modeBoundary = extension.indexOf("if (mode !== 'write') return;");
-    expect(modeBoundary).toBeGreaterThan(0);
-    const readRegistered = [
-      ...extension.slice(0, modeBoundary).matchAll(/pi\.registerTool\(\{\s*name:\s*'([^']+)'/g),
-    ].map((match) => match[1]);
-    const writeRegistered = registered.slice(readRegistered.length);
-    const readSelection = runtime.match(/let names = '([^']+)'/)?.[1].split(',');
-    const writeSelection = runtime.match(/names \+= ',([^']+)'/)?.[1].split(',');
-    expect(readSelection).toEqual(readRegistered);
-    expect(writeSelection).toEqual(writeRegistered);
+  test('exports immutable GitHub tool catalogs for each mode', () => {
+    expect(Object.isFrozen(GITHUB_READ_TOOLS)).toBe(true);
+    expect(Object.isFrozen(GITHUB_WRITE_TOOLS)).toBe(true);
+    expect(GITHUB_READ_TOOLS).toEqual([
+      'get_issue_or_pr_thread',
+      'get_pr_diff',
+      'get_ci_status',
+      'get_workflow_run_logs',
+    ]);
+    expect(GITHUB_WRITE_TOOLS).toEqual([
+      'post_comment',
+      'create_pull_request_review',
+      'create_pull_request',
+      'update_pull_request',
+    ]);
   });
 });
