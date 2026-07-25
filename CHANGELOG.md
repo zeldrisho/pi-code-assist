@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/zeldrisho/pi-code-assist/compare/v2.0.1...v2.0.2) (2026-07-25)
+
+
+### Bug Fixes
+
+* resolve CI and CodeQL failures ([c336a6b](https://github.com/zeldrisho/pi-code-assist/commit/c336a6bbaccf089c9898b059237dcd424de86b55))
+
 ## [2.0.1](https://github.com/zeldrisho/pi-code-assist/compare/v2.0.0...v2.0.1) (2026-07-23)
 
 
