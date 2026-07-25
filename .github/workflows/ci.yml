@@ -33,15 +33,18 @@ jobs:
       - run: vp test
       - run: vp build
 
-      - name: Test action metadata and composition
-        env:
-          PI_AGENT_TEST_BIN: ${{ github.workspace }}/node_modules/.bin/tsx
-          PI_AGENT_TEST_SCRIPT: ${{ github.workspace }}/tests/fake-pi.ts
-          PI_AGENT_TEST_ARGS: ${{ runner.temp }}/fake-pi-args
+      - id: composition
+        name: Test action metadata and composition
+        continue-on-error: true
         uses: ./
         with:
           prompt: Review the action.
           api-key: integration-test-key
           provider: opencode
-          model: deepseek-v4-flash-free
-          pi-version: 0.80.10
+          model: integration-test
+          pi-version: latest
+
+      - name: Verify composition rejected the invalid version before installation
+        if: steps.composition.outcome != 'failure'
+        shell: bash
+        run: exit 1

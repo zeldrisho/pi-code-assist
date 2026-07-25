@@ -6,6 +6,7 @@ import { runProcess } from '../scripts/process.ts';
 
 let root: string;
 const environment = { ...process.env };
+const processFixture = join(import.meta.dirname, 'fixtures', 'process-tree.mjs');
 
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'pi-process-'));
@@ -59,15 +60,9 @@ describe('generic process lifecycle', () => {
 
   test('times out and terminates the full process tree', async () => {
     const marker = join(root, 'child-terminated');
-    const source = `
-const { spawn } = require('node:child_process');
-const child = spawn(process.execPath, ['-e', ${JSON.stringify(`const { writeFileSync } = require('node:fs'); process.on('SIGTERM', () => { writeFileSync(${JSON.stringify(marker)}, 'terminated'); process.exit(0); }); setInterval(() => {}, 1000);`)}], { stdio: 'ignore' });
-process.on('SIGTERM', () => setTimeout(() => process.exit(0), 100));
-setInterval(() => {}, 1000);
-`;
-    const result = await runProcess(process.execPath, ['-e', source], {
+    const result = await runProcess(process.execPath, [processFixture, 'parent'], {
       cwd: process.cwd(),
-      env: environment,
+      env: { ...environment, PROCESS_TEST_MARKER: marker },
       timeoutMs: 250,
     });
     expect(result.timedOut).toBe(true);
@@ -75,11 +70,11 @@ setInterval(() => {}, 1000);
   });
 
   test('escalates from SIGTERM to SIGKILL when a process does not exit', async () => {
-    const result = await runProcess(
-      process.execPath,
-      ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"],
-      { cwd: process.cwd(), env: environment, timeoutMs: 100 },
-    );
+    const result = await runProcess(process.execPath, [processFixture, 'ignore-term'], {
+      cwd: process.cwd(),
+      env: environment,
+      timeoutMs: 100,
+    });
     expect(result).toMatchObject({ code: null, signal: 'SIGKILL', timedOut: true });
   });
 });
